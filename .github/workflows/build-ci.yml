@@ -76,3 +76,4 @@ jobs:
         path: |
           target/release/maxima-cli.exe
           target/release/maxima-bootstrap.exe
+          target/release/maxima-service.exe
