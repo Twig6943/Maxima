@@ -97,8 +97,23 @@ jobs:
         RUSTFLAGS: "-C target-feature=+crt-static"
 
     - uses: actions/upload-artifact@v3
+      if: matrix.os == 'windows-latest'
       with:
-        name: ${{ runner.os}}-maxima-binaries
+        name: maxima-x86_64-win32
+        path: |
+          target/release/maxima-cli.exe
+          target/release/maxima-bootstrap.exe
+          target/release/maxima-service.exe
+
+    - name: Check libs
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        ls -la target/release
+
+    - uses: actions/upload-artifact@v3
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        name: maxima-x86_64-linux-gnu
         path: |
           target/release/maxima-cli
           target/release/maxima-bootstrap
