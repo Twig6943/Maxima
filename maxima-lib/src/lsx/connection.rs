@@ -173,7 +173,7 @@ impl Connection {
 
     pub async fn listen(&mut self) -> Result<()> {
         let re = Regex::new(r"(<LSX>.*?</LSX>)").unwrap();
-        let mut buffer = [0; 1024 * 4];
+        let mut buffer = [0; 1024 * 8];
 
         let n = match self.stream.read(&mut buffer) {
             Ok(n) if n == 0 => return Ok(()),
@@ -233,6 +233,7 @@ impl Connection {
 
     async fn process_message(&mut self, message: &str) -> Result<()> {
         debug!("Received LSX Message: {}", message);
+
         let mut message = message.to_string();
         message.remove_matches("version=\"\" ");
         let lsx_message: LSX = quick_xml::de::from_str(message.as_str())?;
@@ -240,7 +241,7 @@ impl Connection {
         let reply = match lsx_message.value {
             LSXMessageType::Event(msg) => self.process_event_message(msg).await,
             LSXMessageType::Request(msg) => self.process_request_message(msg).await,
-            LSXMessageType::Response(_) => todo!(),
+            LSXMessageType::Response(_) => unimplemented!(),
         }?;
 
         if reply.is_some() {

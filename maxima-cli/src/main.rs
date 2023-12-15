@@ -3,7 +3,7 @@ use clap::{Parser, ValueEnum};
 use anyhow::{bail, Result};
 use inquire::Select;
 use lazy_static::lazy_static;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use regex::Regex;
 use tokio::sync::Mutex;
 

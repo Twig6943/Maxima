@@ -62,8 +62,8 @@ fn service_setup() -> Result<()> {
 
 #[cfg(windows)]
 fn platform_launch(args: BootstrapLaunchArgs) -> Result<()> {
-    let mut child = Command::new(args.path)
-        .args(args.args);
+    let mut binding = Command::new(args.path);
+    let child = binding.args(args.args);
 
     let status = child.spawn()?.wait()?;
     bail!("{}", status.code().unwrap());
