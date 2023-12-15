@@ -77,7 +77,7 @@ fn platform_launch(args: BootstrapLaunchArgs) -> Result<()> {
     let mut binding = Command::new(wine_path);
     let child = binding
         .env("WINEPREFIX", wine_prefix_dir()?)
-        .env("WINEDLLOVERRIDES", "dxgi,d3d11,d3d12,d3d12core=n,b")
+        .env("WINEDLLOVERRIDES", "CryptBase,bcrypt,dxgi,d3d11,d3d12,d3d12core=n,b")
         .arg(args.path)
         .args(args.args);
     
