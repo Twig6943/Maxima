@@ -40,10 +40,11 @@ jobs:
         override: true
         components: rustfmt, clippy
 
-    - name: Install MUSL Target
-      id: install-musl
+    - name: Install Dependencies
+      id: install-depends
       if: matrix.os == 'ubuntu-latest'
       run: |
+        sudo apt-get install -y musl-tools
         rustup target add x86_64-unknown-linux-musl
 
     - uses: Swatinem/rust-cache@v2
@@ -69,11 +70,6 @@ jobs:
         [Environment]::SetEnvironmentVariable("VCPKG_DEFAULT_BINARY_CACHE", "${{ github.workspace }}/vcpkg/cache/", "User")
         .\bootstrap-vcpkg.bat
         .\vcpkg install openssl:x64-windows-static-md
-
-    - name: Install dependencies
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        
 
     - name: Save OpenSSL Cache
       id: cache-openssl-save
