@@ -40,7 +40,7 @@ pub async fn handle_query_entitlements_request(
             attr_EntitlementId: entitlement.entitlement_id,
             attr_UseCount: entitlement.use_count,
             attr_Version: entitlement.version,
-            attr_ItemId: entitlement.product_id,
+            attr_ItemId: entitlement.product_id.unwrap_or_default(),
             attr_ResourceId: String::new(),
             attr_GrantDate: entitlement.grant_date,
             attr_Group: request.attr_Group.to_owned(),

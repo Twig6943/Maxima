@@ -194,7 +194,7 @@ ecommerce_type!(
     attr {},
     data {
         external_type: Option<CommerceEntitlementExternalType>,
-        product_id: String,
+        product_id: Option<String>,
         last_modified_date: String,
         entitlement_source: String,
         entitlement_id: u64,
