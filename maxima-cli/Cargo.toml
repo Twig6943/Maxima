@@ -33,6 +33,9 @@ is_elevated = "0.1.2"
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10.55", features = ["vendored"] }
 
+[build-dependencies]
+maxima-resources = { path = "../maxima-resources" }
+
 [[bin]]
 name = "maxima-cli"
 path = "src/main.rs"

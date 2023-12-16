@@ -24,13 +24,14 @@ use super::native::module_path;
 use super::registry::launch_bootstrap;
 
 pub const SERVICE_NAME: &str = "MaximaBackgroundService";
+pub const SERVICE_DISPLAY_NAME: &str = "Maxima Background Service";
 
 pub fn register_service() -> Result<()> {
     let service_manager = service_manager(true)?;
 
     let service_info = ServiceInfo {
         name: OsString::from(SERVICE_NAME),
-        display_name: OsString::from("Maxima Background service"),
+        display_name: OsString::from(SERVICE_DISPLAY_NAME),
         service_type: ServiceType::OWN_PROCESS | ServiceType::INTERACTIVE_PROCESS,
         start_type: ServiceStartType::OnDemand,
         error_control: ServiceErrorControl::Normal,
@@ -47,6 +48,7 @@ pub fn register_service() -> Result<()> {
         ServiceAccess::START | ServiceAccess::STOP |
         ServiceAccess::CHANGE_CONFIG | ServiceAccess::QUERY_STATUS,
     );
+
     if existing_service.is_ok() {
         info!("Updating existing service...");
         let service = existing_service.unwrap();
@@ -65,7 +67,7 @@ pub fn register_service() -> Result<()> {
     }
 
     let service = service_manager.create_service(&service_info, ServiceAccess::CHANGE_CONFIG)?;
-    service.set_description("Maxima Background Service")?;
+    service.set_description(SERVICE_DISPLAY_NAME)?;
 
     // Allow the service to be started without administrative rights
     unsafe { init_service_security()? };

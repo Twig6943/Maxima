@@ -28,6 +28,9 @@ winreg = "0.50.0"
 windows-service = "0.6.0"
 dll-syringe = "0.15.2"
 
+[build-dependencies]
+maxima-resources = { path = "../maxima-resources" }
+
 [[bin]]
 name = "maxima-service"
 path = "src/main.rs"

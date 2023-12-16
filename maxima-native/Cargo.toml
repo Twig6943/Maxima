@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Sean Kahler <sean@battleda.sh>"]
 edition = "2021"
 
-[build-dependencies]
-cbindgen = "0.25.0"
-
 [dependencies]
 maxima-lib = { path = "../maxima-lib" }
 tokio = { version = "1.28.2", features = [
@@ -58,6 +55,10 @@ dll-syringe = "0.15.2"
 
 [target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10.55", features = ["vendored"] }
+
+[build-dependencies]
+maxima-resources = { path = "../maxima-resources" }
+cbindgen = "0.25.0"
 
 [lib]
 name = "maxima_native"

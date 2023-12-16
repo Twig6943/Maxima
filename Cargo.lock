@@ -2555,6 +2555,7 @@ dependencies = [
  "base64 0.21.2",
  "log",
  "maxima-lib",
+ "maxima-resources",
  "paste",
  "querystring",
  "regex",
@@ -2585,6 +2586,7 @@ dependencies = [
  "lazy_static",
  "log",
  "maxima-lib",
+ "maxima-resources",
  "openssl",
  "paste",
  "quick-xml 0.29.0",
@@ -2656,6 +2658,7 @@ dependencies = [
  "lazy_static",
  "log",
  "maxima-lib",
+ "maxima-resources",
  "open 4.2.0",
  "openssl",
  "paste",
@@ -2675,6 +2678,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "maxima-resources"
+version = "0.1.0"
+dependencies = [
+ "winres",
+]
+
+[[package]]
 name = "maxima-service"
 version = "0.1.0"
 dependencies = [
@@ -2687,6 +2697,7 @@ dependencies = [
  "hex",
  "log",
  "maxima-lib",
+ "maxima-resources",
  "paste",
  "regex",
  "reqwest",
@@ -2712,6 +2723,7 @@ dependencies = [
  "image",
  "log",
  "maxima-lib",
+ "maxima-resources",
  "reqwest",
  "serde",
  "serde_json",
@@ -3173,9 +3185,9 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "6.5.1"
+version = "6.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d5d9eb14b174ee9aa2ef96dc2b94637a2d4b6e7cb873c7e171f0c20c6cf3eac"
+checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "owned_ttf_parser"
@@ -4295,9 +4307,9 @@ dependencies = [
 
 [[package]]
 name = "termcolor"
-version = "1.2.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
+checksum = "ff1bc3d3f05aff0403e8ac0d92ced918ec05b666a43f83297ccef5bea8a3d449"
 dependencies = [
  "winapi-util",
 ]
@@ -5383,6 +5395,15 @@ checksum = "937f3df7948156640f46aacef17a70db0de5917bda9c92b0f751f3a955b588fc"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "winres"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b68db261ef59e9e52806f688020631e987592bd83619edccda9c47d42cde4f6c"
+dependencies = [
+ "toml 0.5.11",
 ]
 
 [[package]]
