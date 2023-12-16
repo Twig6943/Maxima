@@ -1,4 +1,4 @@
-use anyhow::{bail, Result, Error};
+use anyhow::{bail, Result, Error, Ok};
 use egui::{Vec2, vec2, Context};
 use log::{info, error};
 use tokio::sync::Mutex;
@@ -49,7 +49,7 @@ pub enum MaximaLibRequest {
     GetGamesRequest,
     StartGameRequest(String),
     BitchesRequest,
-    EnableRepaintRequest(egui::Context),
+    ShutdownRequest,
 }
 
 pub enum MaximaLibResponse {
@@ -71,6 +71,8 @@ impl MaximaThread {
             let result = MaximaThread::run(rx1, tx1, &context).await;
             if result.is_err() {
                 panic!("Interact thread failed! {}", result.err().unwrap());
+            } else {
+                info!("Interact thread shut down")
             }
         });
 
@@ -80,8 +82,8 @@ impl MaximaThread {
     async fn run(rx1: Receiver<MaximaLibRequest>, tx1: Sender<MaximaLibResponse>, ctx: &Context) -> Result<()> {
         let mut maxima_arc: Option<Arc<Mutex<Maxima>>> = None;
 
-        let mut ui_ctx: Option<egui::Context> = None;
-        loop {
+        let mut ui_ctx = ctx.clone();
+        'outer: loop {
             let request = rx1.recv()?;
             match request {
                 MaximaLibRequest::LoginRequestOauth => {
@@ -136,7 +138,7 @@ impl MaximaThread {
                                         || !has_logo
                                         { //game hasn't been cached yet
                                             // TODO: image downloading
-                                            send_service_request(&maxima.access_token(), SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder::default().should_fetch_context_image(true).should_fetch_backdrop_images(true).game_slug(game.product().game_slug().clone()).locale(maxima.locale().short_str().to_owned()).build()?).await?
+                                            send_service_request(&maxima.access_token(), SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder::default().should_fetch_context_image(!has_logo).should_fetch_backdrop_images(!has_hero).game_slug(game.product().game_slug().clone()).locale(maxima.locale().short_str().to_owned()).build()?).await?
                                         } else { None };
 
                                 // TODO:: there's probably a cleaner way to do this
@@ -156,7 +158,7 @@ impl MaximaThread {
                                         None
                                     }
                                 } else {
-                                    error!("Failed to get ServiceGame struct for {}", game.product().game_slug().clone());
+                                    // There used to be an error here, however the only way to get here is if the game's assets are already cached
                                     None
                                 };
 
@@ -237,9 +239,7 @@ impl MaximaThread {
                                     );
                                     tx1.send(res)?;
 
-                                    if let Some(ctx) = &ui_ctx {
-                                        egui::Context::request_repaint(&ctx);
-                                    }
+                                    egui::Context::request_repaint(&ctx);
                                 }
                             }
                         }
@@ -291,9 +291,6 @@ impl MaximaThread {
                         println!("Ignoring request to start game, not logged in.");
                     }
                 }
-                MaximaLibRequest::EnableRepaintRequest(egui_context) => {
-                    ui_ctx = Some(egui_context);
-                }
                 MaximaLibRequest::BitchesRequest => {
                     println!("———————————No bitches?————————");
                     println!("⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝");
@@ -310,6 +307,10 @@ impl MaximaThread {
                     println!("⠀⠀⠀⡟⡾⣿⢿⢿⢵⣽⣾⣼⣘⢸⢸⣞⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
                     println!("⠀⠀⠀⠀⠁⠇⠡⠩⡫⢿⣝⡻⡮⣒⢽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
                     println!("————————————————————————————-—");
+                }
+                MaximaLibRequest::ShutdownRequest => {
+                    break 'outer
+                    Ok(())
                 }
             }
         }

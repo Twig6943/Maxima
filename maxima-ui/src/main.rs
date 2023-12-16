@@ -640,10 +640,15 @@ impl eframe::App for DemoEguiApp {
                         }
                     }
                 } else {
-                    ui.vertical_centered(|ui| {
+                    ui.allocate_exact_size(vec2(0.0, (ui.available_size_before_wrap().y / 2.0) - 120.0), egui::Sense::click());
+                    ui.vertical_centered_justified(|ui| {
                         ui.heading("You're not logged in.");
                         ui.horizontal(|ui| {
-                            if ui.button("OAuth (Browser)").clicked() {
+                            ui.allocate_exact_size(vec2((ui.available_width() - (330.0 + ui.style().spacing.item_spacing.x))/2.0, 0.0), egui::Sense::click());
+                            
+                            if ui.add_sized([160.0,60.0], egui::Button::new("OAuth (Browser)")).clicked() {
+                                self.in_progress_login_type = InProgressLoginType::Oauth;
+                                self.in_progress_login = true;
                                 self.backend
                                 .tx
                                 .send(interact_thread::MaximaLibRequest::LoginRequestOauth).unwrap();
@@ -652,7 +657,9 @@ impl eframe::App for DemoEguiApp {
                                 .send(interact_thread::MaximaLibRequest::GetGamesRequest).unwrap();
                             }
                             ui.set_enabled(false);
-                            if ui.button("Username & Password").clicked() {
+                            if ui.add_sized([160.0,60.0], egui::Button::new("Username and Password")).clicked() {
+                                self.in_progress_login_type = InProgressLoginType::UsernamePass;
+                                self.in_progress_login = true;
 
                             }
                         })
@@ -903,5 +910,8 @@ impl eframe::App for DemoEguiApp {
 
     fn on_exit(&mut self, _gl: Option<&glow::Context>) {
         self.game_image_handler.shutdown();
+        self.backend
+        .tx
+        .send(interact_thread::MaximaLibRequest::ShutdownRequest).unwrap();
     }
 }
