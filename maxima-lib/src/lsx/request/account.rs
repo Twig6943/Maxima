@@ -15,14 +15,23 @@ pub async fn handle_query_entitlements_request(
     state: LockedConnectionState,
     request: LSXQueryEntitlements,
 ) -> Result<Option<LSXResponseType>> {
-    let token = state.write().await.access_token().await;
+    let user_id = if request.attr_UserId != 0 {
+        request.attr_UserId.to_string()
+    } else {
+        state
+            .write()
+            .await
+            .maxima()
+            .await
+            .local_user()
+            .await?
+            .id()
+            .to_owned()
+    };
 
-    let entitlements = request_entitlements(
-        &token,
-        &request.attr_UserId.to_string(),
-        Some(&request.attr_Group.to_owned()),
-    )
-    .await?;
+    let token = state.write().await.access_token().await;
+    let entitlements =
+        request_entitlements(&token, &user_id, Some(&request.attr_Group.to_owned())).await?;
 
     let mut lsx_entitlements = Vec::new();
     for entitlement in entitlements {
