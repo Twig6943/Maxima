@@ -107,6 +107,11 @@ jobs:
           target/release/maxima-cli.exe
           target/release/maxima-ui.exe
 
+    - name: List Files
+      if: runner.os == 'Linux'
+      run: |
+        ls -l target/x86_64-unknown-linux-musl/release
+
     - uses: actions/upload-artifact@v3
       if: runner.os == 'Linux'
       with:
