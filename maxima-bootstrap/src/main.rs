@@ -98,7 +98,7 @@ async fn run(args: &Vec<String>) -> Result<()> {
             child.args(["--mode", "launch", "--offer-id", "Origin.OFR.50.0002148"]);
             child.spawn()?.wait()?;
         } else {
-            let query = arg.split("login_successful.html#").collect::<Vec<&str>>()[1];
+            let query = arg.split("login_successful.html?").collect::<Vec<&str>>()[1];
             reqwest::get(format!("http://127.0.0.1:31033/auth?{}", query)).await?;
         }
         return Ok(());
