@@ -1,8 +1,11 @@
-pub mod native;
+pub mod github;
+pub mod hw_info;
 pub mod log;
+pub mod native;
 pub mod registry;
 pub mod simple_crypto;
-pub mod github;
+pub mod system_profiler_utils;
+pub mod wmi_utils;
 
 #[cfg(windows)]
 pub mod service {
