@@ -30,7 +30,7 @@ use maxima::{
         registry::{check_registry_validity, bootstrap_path, launch_bootstrap, read_game_path},
     },
 };
-use maxima::core::auth::execute_connect_token;
+use maxima::core::auth::nucleus_connect_token;
 
 use crate::{GameInfo, GameImage};
 
@@ -116,7 +116,7 @@ impl MaximaThread {
                         let mut auth_storage = maxima.auth_storage().lock().await;
                         let mut context = AuthContext::new()?;
                         login::begin_oauth_login_flow(&mut context).await?;
-                        let token_res = execute_connect_token(&context).await?;
+                        let token_res = nucleus_connect_token(&context).await?;
                         auth_storage.add_account(&token_res).await?;
                     }
 

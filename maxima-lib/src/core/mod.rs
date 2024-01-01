@@ -126,12 +126,12 @@ impl Maxima {
 
     pub async fn access_token(&mut self) -> Result<String> {
         let mut auth_storage = self.auth_storage.lock().await;
-        let account = auth_storage.current();
-        if account.is_none() {
+        let access_token = auth_storage.access_token().await?;
+        if access_token.is_none() {
             bail!("You are not signed in");
         }
 
-        Ok(account.unwrap().access_token().await?.to_owned())
+        Ok(access_token.unwrap())
     }
 
     pub async fn local_user(&self) -> Result<ServiceUser> {

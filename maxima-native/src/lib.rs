@@ -27,7 +27,7 @@ use maxima::{
     },
 };
 
-use maxima::core::auth::execute_connect_token;
+use maxima::core::auth::nucleus_connect_token;
 use tokio::{runtime::Runtime, sync::Mutex};
 
 pub const ERR_SUCCESS: usize = 0;
@@ -201,7 +201,7 @@ pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut 
         return ERR_CHECK_LE;
     }
 
-    let token = rt.block_on(async { execute_connect_token(&auth_context).await });
+    let token = rt.block_on(async { nucleus_connect_token(&auth_context).await });
     if token.is_err() {
         set_last_error_from_result(token);
         return ERR_LOGIN_FAILED;

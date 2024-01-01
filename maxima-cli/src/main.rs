@@ -18,8 +18,8 @@ use maxima::{
 };
 
 use maxima::core::{
-    auth::{execute_connect_token, TokenResponse},
-    LockedMaxima,
+    auth::{nucleus_connect_token, TokenResponse},
+    LockedMaxima, clients::JUNO_PC_CLIENT_ID,
 };
 use maxima::{
     content::{zip::ZipFile, ContentService},
@@ -137,7 +137,7 @@ pub async fn login_flow(login_override: Option<String>) -> Result<TokenResponse>
         };
 
         auth_context.set_access_token(&access_token);
-        let code = execute_auth_exchange(&auth_context, "JUNO_PC_CLIENT", "code").await?;
+        let code = execute_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
         auth_context.set_code(&code);
     } else {
         begin_oauth_login_flow(&mut auth_context).await?
@@ -151,7 +151,7 @@ pub async fn login_flow(login_override: Option<String>) -> Result<TokenResponse>
         info!("Received login...");
     }
 
-    let token_res = execute_connect_token(&auth_context).await;
+    let token_res = nucleus_connect_token(&auth_context).await;
     if token_res.is_err() {
         bail!("Login failed: {}", token_res.err().unwrap().to_string());
     }

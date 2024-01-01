@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use crate::util::native::maxima_dir;
 
-use super::{token_info::NucleusTokenInfo, TokenResponse};
+use super::{nucleus_connect_token_refresh, token_info::NucleusTokenInfo, TokenResponse};
 
 const FILE: &str = "auth.toml";
 
@@ -20,6 +20,9 @@ const FILE: &str = "auth.toml";
 pub struct AuthAccount {
     #[serde(skip_serializing, skip_deserializing)]
     client: Client,
+    #[serde(skip_serializing, skip_deserializing)]
+    dirty: bool,
+
     access_token: String,
     refresh_token: String,
     /// Expiry time in seconds since epoch
@@ -29,28 +32,35 @@ pub struct AuthAccount {
 
 impl AuthAccount {
     async fn from_token_response(response: &TokenResponse) -> Result<Self> {
+        let mut account = Self::default();
+        account.parse_token_response(response).await?;
+        Ok(account)
+    }
+
+    async fn parse_token_response(&mut self, response: &TokenResponse) -> Result<()> {
         let client = Client::new();
 
         let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         let expires_at = secs_since_epoch + response.expires_in();
 
-        let access_token = response.access_token().to_owned();
-        let token_info = NucleusTokenInfo::fetch(&client, &access_token).await?;
+        self.access_token = response.access_token().to_owned();
+        self.refresh_token = response.refresh_token().to_owned();
+        self.expires_at = expires_at;
 
-        Ok(Self {
-            client: Client::new(),
-            access_token,
-            refresh_token: response.refresh_token().to_owned(),
-            expires_at,
-            user_id: token_info.user_id().to_owned(),
-        })
+        if self.user_id.is_empty() {
+            let token_info = NucleusTokenInfo::fetch(&client, &self.access_token).await?;
+            self.user_id = token_info.user_id().to_owned();
+        }
+
+        self.dirty = true;
+        Ok(())
     }
 
     pub async fn access_token(&mut self) -> Result<&str> {
         // If the key is expired (or is about to be), refresh
         let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if secs_since_epoch >= self.expires_at - 10 {
-            self.refresh().await;
+            self.refresh().await?;
         }
 
         Ok(&self.access_token)
@@ -70,8 +80,10 @@ impl AuthAccount {
         Ok(true)
     }
 
-    async fn refresh(&mut self) {
-        todo!();
+    async fn refresh(&mut self) -> Result<()> {
+        let token_res = nucleus_connect_token_refresh(&self.refresh_token).await?;
+        self.parse_token_response(&token_res).await?;
+        Ok(())
     }
 }
 
@@ -91,7 +103,12 @@ impl AuthStorage {
         }
 
         let data = fs::read_to_string(file)?;
-        Ok(Arc::new(Mutex::new(toml::from_str(&data)?)))
+        let result = toml::from_str(&data);
+        if result.is_err() {
+            return Ok(Arc::new(Mutex::new(Self::default())));
+        }
+
+        Ok(Arc::new(Mutex::new(result.unwrap())))
     }
 
     pub(crate) fn save(&self) -> Result<()> {
@@ -114,6 +131,18 @@ impl AuthStorage {
         }
     }
 
+    pub async fn access_token(&mut self) -> Result<Option<String>> {
+        let current = self.current();
+        if current.is_none() {
+            return Ok(None);
+        }
+
+        let access_token = current.unwrap().access_token().await?.to_owned();
+        self.save_if_dirty()?;
+
+        Ok(Some(access_token))
+    }
+
     /// Add an account from a token response and set it as the currently selected one
     pub async fn add_account(&mut self, response: &TokenResponse) -> Result<()> {
         let account = AuthAccount::from_token_response(response).await?;
@@ -122,7 +151,16 @@ impl AuthStorage {
         self.accounts.insert(user_id.to_owned(), account);
         self.selected = Some(user_id);
 
-        self.save()?;
+        self.save_if_dirty()?;
+        Ok(())
+    }
+
+    fn save_if_dirty(&self) -> Result<()> {
+        let needed = self.accounts.iter().any(|a| a.1.dirty);
+        if needed {
+            self.save()?;
+        }
+
         Ok(())
     }
 }

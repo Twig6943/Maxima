@@ -80,7 +80,7 @@ pub struct TokenResponse {
     refresh_token: String,
 }
 
-pub async fn execute_connect_token(auth_context: &AuthContext<'_>) -> Result<TokenResponse> {
+pub async fn nucleus_connect_token(auth_context: &AuthContext<'_>) -> Result<TokenResponse> {
     assert!(auth_context.code().is_some());
 
     let query = vec![
@@ -102,6 +102,32 @@ pub async fn execute_connect_token(auth_context: &AuthContext<'_>) -> Result<Tok
         bail!(
             "Token exchange failed with code {}: {}",
             auth_context.code().unwrap(),
+            res.text().await?
+        );
+    }
+
+    let response: TokenResponse = serde_json::from_str(&res.text().await?)?;
+    Ok(response)
+}
+
+pub async fn nucleus_connect_token_refresh(refresh_token: &str) -> Result<TokenResponse> {
+    let query = vec![
+        ("grant_type", "refresh_token"),
+        ("refresh_token", refresh_token),
+        ("client_id", JUNO_PC_CLIENT_ID),
+        ("client_secret", JUNO_PC_CLIENT_SECRET),
+    ];
+
+    let client = Client::builder()
+        .redirect(redirect::Policy::none())
+        .build()?;
+    let res = client.post(API_NUCLEUS_TOKEN).form(&query).send().await?;
+
+    let status = res.status();
+    if status.is_client_error() || status.is_server_error() {
+        bail!(
+            "Token refresh failed with code {}: {}",
+            refresh_token,
             res.text().await?
         );
     }

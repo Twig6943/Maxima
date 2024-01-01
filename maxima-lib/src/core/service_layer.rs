@@ -123,11 +123,11 @@ impl ServiceLayerClient {
         };
 
         let mut auth = self.auth.lock().await;
-        let current_account = auth.current();
-        if let Some(account) = current_account {
+        let access_token = auth.access_token().await?;
+        if let Some(access_token) = access_token {
             request = request.header(
                 "Authorization",
-                &("Bearer ".to_owned() + account.access_token().await?),
+                &("Bearer ".to_owned() + &access_token),
             );
         }
 
