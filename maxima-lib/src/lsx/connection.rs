@@ -104,14 +104,8 @@ impl ConnectionState {
         Ok(self
             .maxima()
             .await
-            .auth_storage()
-            .lock()
-            .await
-            .current()
-            .unwrap()
             .access_token()
-            .await?
-            .to_owned())
+            .await?)
     }
 
     pub fn queue_message(&mut self, message: LSX) -> Result<()> {

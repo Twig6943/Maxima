@@ -56,7 +56,7 @@ impl AuthAccount {
         Ok(())
     }
 
-    pub async fn access_token(&mut self) -> Result<&str> {
+    async fn access_token(&mut self) -> Result<&str> {
         // If the key is expired (or is about to be), refresh
         let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if secs_since_epoch >= self.expires_at - 10 {
@@ -66,7 +66,7 @@ impl AuthAccount {
         Ok(&self.access_token)
     }
 
-    pub async fn validate(&mut self) -> Result<bool> {
+    async fn validate(&mut self) -> Result<bool> {
         let access_token = self.access_token().await?.to_owned();
         let token_info = NucleusTokenInfo::fetch(&self.client, &access_token).await;
         if token_info.is_err() {
