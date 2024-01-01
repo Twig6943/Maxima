@@ -2,12 +2,14 @@ precision mediump float;
 in vec4 v_color;
 in vec2 og_pos;
 in vec2 tex_coords;
+in vec2 position;
 out vec4 out_color;
 uniform sampler2D u_hero;
 uniform vec2 u_dimensions;
 
 void main() {
     float gamma = 1.8;
+    if (position.y <= -1.) discard;
     if (v_color.w == 1.0) {     // main hero image
         float fade0 = smoothstep(0.8, 1, abs(og_pos.x));
         float fade1 = mix(1.0,0.0,fade0);
@@ -25,7 +27,7 @@ void main() {
         
         // Normalized pixel coordinates (from 0 to 1)
         vec2 uv = tex_coords;
-        // Pixel colour
+        // Pixel color
         vec3 Color = texture(u_hero, tex_coords).rgb;
         
         // Blur calculations

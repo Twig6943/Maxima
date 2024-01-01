@@ -1,5 +1,6 @@
 use egui::{Ui, Color32, vec2, Margin, ScrollArea, Rect, Pos2, Mesh, Shape, Rounding, epaint::Shadow, RichText, Stroke, Visuals};
 use egui_extras::{StripBuilder, Size};
+use log::info;
 use crate::{DemoEguiApp, GameInfo, GameInfoTab};
 
 const GAMELIST_BUTTON_NORMAL: Color32 = Color32::from_rgb(20, 20, 20);
@@ -55,7 +56,7 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
         ui.vertical(|ui| {
           if let Ok(hero) = (&game).hero(&mut app.game_image_handler) {
             if let Some(gvbg) = &app.game_view_bg_renderer {
-              gvbg.draw(ui, hero_rect, game.hero.size, hero);
+              gvbg.draw(ui, hero_rect, game.hero.size, hero, app.game_view_frac);
               ui.allocate_space(hero_rect.size());
             } else {
               ui.put(hero_rect, egui::Image::new(hero, hero_rect_2.size()));
@@ -66,72 +67,69 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
           }
           
           
-          let mut frac :f32 = 0.0;
+          
           ScrollArea::vertical().show(ui, |ui| {
             StripBuilder::new(ui).size(Size::exact(900.0))
             .vertical(|mut strip| {
               strip.cell(|ui| {
-                ui.allocate_space(vec2(0.0,hero_rect.size().y - 40.0));
+                ui.allocate_space(vec2(0.0,hero_rect.size().y));
                 let mut fade_rect = Rect::clone(&ui.cursor());
                 fade_rect.max.y = fade_rect.min.y + 40.0;
-                frac = (fade_rect.max.y - hero_rect.min.y) / (hero_rect.max.y - hero_rect.min.y);
-                frac = if frac < 0.0 { 1.0 } else { if frac > 1.0 { 0.0 } else { bezier_ease(1.0 -  frac) }}; //clamping
+                app.game_view_frac = (fade_rect.max.y - hero_rect.min.y) / (hero_rect.max.y - hero_rect.min.y);
+                app.game_view_frac = if app.game_view_frac < 0.0 { 1.0 } else { if app.game_view_frac > 1.0 { 0.0 } else { bezier_ease(1.0 -  app.game_view_frac) }}; //clamping
                 let mut mesh = Mesh::default();
-                mesh.colored_vertex(fade_rect.left_top(), Color32::TRANSPARENT);
-                mesh.colored_vertex(fade_rect.right_top(), Color32::TRANSPARENT);
-                mesh.colored_vertex(fade_rect.left_bottom(), ui.visuals().window_fill);
-                mesh.colored_vertex(fade_rect.right_bottom(), ui.visuals().window_fill);
-                mesh.colored_vertex(Pos2::new(fade_rect.min.x, hero_container_max_y), ui.visuals().window_fill);
-                mesh.colored_vertex(Pos2::new(fade_rect.max.x, hero_container_max_y), ui.visuals().window_fill);
 
                 let we_do_a_smidge_of_trolling_dont_fucking_ship_this = Color32::from_black_alpha(20);
-                mesh.colored_vertex(hero_rect.left_bottom(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
-                mesh.colored_vertex(hero_rect.right_bottom(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
+                mesh.colored_vertex(hero_rect.left_bottom() - vec2(0.0, app.game_view_frac * hero_rect.height()), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
+                mesh.colored_vertex(hero_rect.right_bottom() - vec2(0.0, app.game_view_frac * hero_rect.height()), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
                 mesh.colored_vertex(hero_rect.right_top(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
                 mesh.colored_vertex(hero_rect.left_top(), we_do_a_smidge_of_trolling_dont_fucking_ship_this);
-                mesh.add_triangle(6, 7, 8);
-                mesh.add_triangle(6, 8, 9);
-
                 mesh.add_triangle(0, 1, 2);
-                mesh.add_triangle(1, 2, 3);
-                mesh.add_triangle(2, 3, 4);
-                mesh.add_triangle(3, 4, 5);
-                ui.painter().add(Shape::mesh(mesh));
-                ui.allocate_space(vec2(0.0,9.0));
+                mesh.add_triangle(0, 2, 3);
 
+                ui.painter().add(Shape::mesh(mesh));
+
+                let mut bar_rounding = Rounding::same(3.0);
+                bar_rounding.nw = 0.0;
+                bar_rounding.ne = 0.0;
                 let play_bar_frame = egui::Frame::default()
-                .fill(Color32::from_black_alpha(120))
-                .rounding(Rounding::same(0.0))
-                //.inner_margin(Margin::same(4.0))
-                .outer_margin(Margin::same(4.0));
+                //.fill(Color32::from_black_alpha(120))
+                .rounding(Rounding::none());
+                //.inner_margin(Margin::same(4.0));
+                //.outer_margin(Margin::same(4.0));
                 play_bar_frame.show(ui, |ui| {
                   ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;
                     let stats_frame = egui::Frame::default()
                     .fill(Color32::WHITE)
+                    .rounding(bar_rounding)
                     .inner_margin(Margin::same(4.0));
                     stats_frame.show(ui, |stats| {
                       stats.horizontal(|stats| {
+                        stats.style_mut().spacing.item_spacing.x = 4.0;
                         stats.label(RichText::new(&app.locale.localization.games_view.main.playtime).color(Color32::BLACK).strong());
                         stats.label(RichText::new(format!(": {:?} hours",app.games[app.game_sel].time as f32 / 10.0)).color(Color32::BLACK));
                         stats.separator();
                         stats.label(RichText::new(&app.locale.localization.games_view.main.achievements).color(Color32::BLACK).strong());
                         stats.label(RichText::new(format!(": {:?} / {:?}",app.games[app.game_sel].achievements_unlocked,app.games[app.game_sel].achievements_total)).color(Color32::BLACK));
+                        stats.allocate_space(vec2(stats.available_width(),0.0));
                       });
                     });
+                    
                     let buttons_frame = egui::Frame::default()
-                    .fill(Color32::TRANSPARENT)
-                    .inner_margin(Margin::same(4.0));
+                    .outer_margin(Margin::symmetric(0.0, 8.0))
+                    .fill(Color32::TRANSPARENT);
                     buttons_frame.show(ui, |buttons| {
+                      buttons.style_mut().visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
                       //disabling the platform lockout for now, looks better for UI showcases
                       let play_str = /*if cfg!(target_os = "linux") { "Play on " } else*/ { &app.locale.localization.games_view.main.play };
-                      if buttons.add_sized(vec2(175.0,50.0), egui::Button::new(egui::RichText::new(play_str)
+                      if buttons.add_sized(vec2(125.0,50.0), egui::Button::new(egui::RichText::new(play_str)
                         .size(26.0)
                         .color(Color32::WHITE))
                         //.fill(if cfg!(target_os = "linux") { ACCENT_COLOR } else { ACCENT_COLOR })
-                        .rounding(Rounding::same(0.0))
+                        .rounding(Rounding::same(2.0))
                       ).clicked() {
-                        app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
+                        let _ = app.backend.tx.send(crate::interact_thread::MaximaLibRequest::StartGameRequest(game.offer.clone()));
                       }
                     });
 
@@ -190,7 +188,10 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
                   ui.style_mut().spacing.item_spacing = vec2(5.0,5.0);
 
                   ui.strong("Frac");
-                  ui.label(format!("{:?}",frac));
+                  ui.label(format!("{:?}",app.game_view_frac));
+                  ui.strong("Hero Aspect Ratio");
+                  ui.label(format!("{:?}",(app.games[app.game_sel].hero.size.x / app.games[app.game_sel].hero.size.y)));
+                  ui.heading("ngl this looks clean as hell");
                   for _idx in 0..75 {
                     ui.heading("");
                   }
@@ -209,10 +210,11 @@ pub fn game_view_details_panel(app : &mut DemoEguiApp, ui: &mut Ui) {
               // fringe edge case, here in case EA decides they want to pull something really fucking stupid
               0.0 // TODO:: CALCULATE IT
             };
-            let logo_size = vec2(egui::lerp(320.0..=160.0, frac), egui::lerp(logo_size_pre..=(logo_size_pre/2.0), frac));
+            let frac2 = app.game_view_frac.clone();
+            let logo_size = vec2(egui::lerp(320.0..=160.0, frac2), egui::lerp(logo_size_pre..=(logo_size_pre/2.0), frac2));
             let logo_rect = Rect::from_min_max(
-              Pos2 { x: (egui::lerp(hero_rect.min.x..=hero_rect.max.x-180.0, frac)), y: (hero_rect.min.y) },
-              Pos2 { x: (egui::lerp(hero_rect.max.x..=hero_rect.max.x-20.0, frac)), y: (egui::lerp(hero_rect.max.y..=hero_rect.min.y+80.0, frac)) }
+              Pos2 { x: (egui::lerp(hero_rect.min.x..=hero_rect.max.x-180.0, frac2)), y: (hero_rect.min.y) },
+              Pos2 { x: (egui::lerp(hero_rect.max.x..=hero_rect.max.x-20.0, frac2)), y: (egui::lerp(hero_rect.max.y..=hero_rect.min.y+80.0, frac2)) }
             );
             if let Ok(logo) = game.logo(&mut app.game_image_handler) {
               ui.put(logo_rect, egui::Image::new(logo, logo_size));

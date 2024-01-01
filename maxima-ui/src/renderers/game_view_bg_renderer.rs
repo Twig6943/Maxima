@@ -23,12 +23,12 @@ impl GameViewBgRenderer {
         })
     }
 
-    pub fn draw(&self, ui: &mut egui::Ui, rect : egui::Rect, img_size: Vec2, img : TextureId) {
+    pub fn draw(&self, ui: &mut egui::Ui, rect : egui::Rect, img_size: Vec2, img : TextureId, frac: f32) {
         let render = self.render.clone();
 
         let cb = egui_glow::CallbackFn::new(move |_info, painter| {
             
-            render.lock().paint(painter.gl(), rect.size(), img_size, painter.texture(img).expect("fuck you"));
+            render.lock().paint(painter.gl(), rect.size(), img_size, painter.texture(img).expect("fuck you"), frac);
         });
 
         let callback = egui::PaintCallback {
@@ -44,6 +44,7 @@ struct GVBGUnsafe {   //I say this despite having used C++ for years before rust
     program: glow::Program,
     vert_array: glow::VertexArray,
     hero_uniform: Option<glow::NativeUniformLocation>,
+    frac_uniform: Option<glow::NativeUniformLocation>,
 }
 
 impl GVBGUnsafe {
@@ -62,8 +63,8 @@ impl GVBGUnsafe {
                 return None;
             }
 
-            let vsource = include_str!("../shaders/gvbg.vert");
-            let fsource = include_str!("../shaders/gvbg.frag");
+            let vsource = include_str!("../../shaders/gvbg.vert");
+            let fsource = include_str!("../../shaders/gvbg.frag");
 
             let shader_src = [
                 (glow::VERTEX_SHADER, vsource),
@@ -110,7 +111,8 @@ impl GVBGUnsafe {
             Some(Self {
                 program : program,
                 vert_array: vertex_array,
-                hero_uniform: gl.get_uniform_location(program, "u_hero")
+                hero_uniform: gl.get_uniform_location(program, "u_hero"),
+                frac_uniform: gl.get_uniform_location(program, "u_frac"),
             })
         }
     }
@@ -123,7 +125,7 @@ impl GVBGUnsafe {
         }
     }
 
-    fn paint(&self, gl : &glow::Context, dimensions : Vec2, img_dimensions: Vec2, img : glow::Texture) {
+    fn paint(&self, gl : &glow::Context, dimensions : Vec2, img_dimensions: Vec2, img : glow::Texture, frac: f32) {
         use glow::HasContext as _;
         unsafe {
             // WHY CAN I DISABLE SO MUCH OF THIS AND STILL HAVE IT WORK
@@ -145,6 +147,7 @@ impl GVBGUnsafe {
                 img_dimensions.x, img_dimensions.y
             );
             //gl.uniform_1_u32(self.hero_uniform.as_ref(), TEXTURE_2D);
+            gl.uniform_1_f32(self.frac_uniform.as_ref(), frac);
             
             gl.bind_texture(TEXTURE_2D, Some(img));
             

@@ -1,5 +1,7 @@
 #![feature(slice_pattern)]
 use clap::{arg, command, Parser};
+use log::info;
+
 //lmao?
 //use winapi::um::winuser::{SetWindowLongA, GWL_STYLE, ShowWindow, SW_SHOW, GWL_EXSTYLE, WS_EX_TOOLWINDOW, SetWindowTextA};
 use std::{
@@ -28,7 +30,10 @@ use tokio::sync::Mutex;
 use std::{fs::File, io, panic, path::PathBuf};
 
 use fs::image_loader::{save_image_from_url, ImageLoader};
+use renderers::game_view_bg_renderer;
 use game_view_bg_renderer::GameViewBgRenderer;
+use renderers::app_bg_renderer;
+use app_bg_renderer::AppBgRenderer;
 use translation_manager::TranslationManager;
 use views::friends_view::{FriendsViewBar, FriendsViewBarPage, FriendsViewBarStatusFilter};
 
@@ -47,7 +52,7 @@ mod fs;
 mod views;
 
 mod game_info_image_handler;
-mod game_view_bg_renderer;
+mod renderers;
 mod interact_thread;
 mod translation_manager;
 
@@ -72,6 +77,7 @@ use maxima::{
 };
 
 const ACCENT_COLOR : Color32 = Color32::from_rgb(8, 171, 244);
+const APP_MARGIN : Vec2 = vec2(12.0, 12.0); //TODO: user setting
 
 #[derive(Parser, Debug, Copy, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -220,6 +226,8 @@ pub struct DemoEguiApp {
     needs_first_time_load: bool,          // Don't let this ship, please
     game_image_handler: GameImageHandler, // Game image loader, i will probably replace this with a more robust all images loader
     game_view_bg_renderer: Option<GameViewBgRenderer>, // Renderer for the blur effect in the game view
+    game_view_frac: f32,                  // Multi-purpose fraction, how far along the bottom edge of the initial bottom edge of the hero image has scrolled up
+    app_bg_renderer: Option<AppBgRenderer>,     // Renderer for the app's background
     locale: TranslationManager,
     critical_bg_thread_crashed: bool, // If a core thread has crashed and made the UI unstable
     backend: MaximaThread,
@@ -333,6 +341,8 @@ impl DemoEguiApp {
             needs_first_time_load: true,
             game_image_handler: GameImageHandler::new(&cc.egui_ctx),
             game_view_bg_renderer: GameViewBgRenderer::new(cc),
+            game_view_frac: 0.0,
+            app_bg_renderer: AppBgRenderer::new(cc),
             locale: TranslationManager::new("./res/locale/en_us.json".to_owned())
                 .expect("Could not load translation file"),
             critical_bg_thread_crashed: false,
@@ -403,8 +413,8 @@ fn custom_window_frame(
         };
         #[cfg(not(target_os = "macos"))]
         let content_rect = Rect {
-            min: app_rect.min + vec2(8.0, 8.0),
-            max: app_rect.max - vec2(8.0, 8.0),
+            min: app_rect.min + APP_MARGIN,
+            max: app_rect.max - APP_MARGIN,
         };
         
         let mut content_ui = ui.child_ui(content_rect, *ui.layout());
@@ -541,7 +551,7 @@ fn tab_button(ui: &mut Ui, mut edit_var: &mut PageType, page: PageType, label: S
         ui.style_mut().visuals.widgets.hovered.fg_stroke = Stroke::new(2.0, F9B233);
         ui.style_mut().visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     }
-    let text = egui::RichText::new(label).size(20.0);
+    let text = egui::RichText::new(label.to_uppercase()).size(16.0);
     
     let test = ui.add_sized([120.0,30.0], egui::Button::new(text));
     if test.clicked() {
@@ -624,6 +634,21 @@ impl eframe::App for DemoEguiApp {
             );*/
         }
         custom_window_frame(ctx, frame, "Maxima", |ui| {
+            if let Some(render) = &self.app_bg_renderer {
+                let mut fullrect = ui.available_rect_before_wrap().clone();
+                fullrect.min -= APP_MARGIN;
+                fullrect.max += APP_MARGIN;
+                if self.page_view == PageType::Games && self.logged_in && self.games.len() > self.game_sel {
+                    if let Ok(hero) = self.games[self.game_sel].hero(&mut self.game_image_handler) {
+                        render.draw(ui, fullrect, self.games[self.game_sel].hero.size, hero);
+                    } else {
+                        render.draw(ui, fullrect, fullrect.size(), TextureId::Managed(1));
+                    }
+                } else {
+                    render.draw(ui, fullrect, fullrect.size(), TextureId::Managed(1));
+                }
+                
+            }
             if !self.logged_in {
                 if self.in_progress_login {
                     match self.in_progress_login_type {
@@ -685,7 +710,7 @@ impl eframe::App for DemoEguiApp {
                             //header.painter().rect_filled(header.available_rect_before_wrap(), Rounding::none(), Color32::from_white_alpha(20));
                             let navbar = egui::Frame::default()
                             .stroke(Stroke::new(2.0, Color32::WHITE))
-                            .fill(Color32::BLACK)
+                            //.fill(Color32::TRANSPARENT)
                             .outer_margin(Margin::same(1.0))
                             .rounding(Rounding::same(4.0));
                             navbar.show(header, |ui| {

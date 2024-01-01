@@ -46,7 +46,9 @@ const vec2 uvs[12] = vec2[12](
 out vec4 v_color;
 out vec2 og_pos;
 out vec2 tex_coords;
+out vec2 position;
 uniform vec2 u_dimensions;
+uniform float u_frac;
 void main() {
     v_color = colors[gl_VertexID];
     vec2 vpos = verts[gl_VertexID];
@@ -61,6 +63,7 @@ void main() {
     }
     else
         vpos.y *= ((u_dimensions.x/16) * 9) / u_dimensions.y;
+    position = vpos.xy;
+    vpos.y += u_frac*2;
     gl_Position = vec4(vpos, 0.0, 1.0);
-    
 }
