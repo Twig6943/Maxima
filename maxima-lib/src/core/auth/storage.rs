@@ -31,6 +31,10 @@ pub struct AuthAccount {
 }
 
 impl AuthAccount {
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
+
     async fn from_token_response(response: &TokenResponse) -> Result<Self> {
         let mut account = Self::default();
         account.parse_token_response(response).await?;
