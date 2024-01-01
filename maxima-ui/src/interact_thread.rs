@@ -1,6 +1,6 @@
 use anyhow::{Result, Ok};
 use egui::{vec2, Context};
-use log::{info, error};
+use log::{info, error, debug};
 use tokio::sync::Mutex;
 
 use std::{
@@ -72,11 +72,11 @@ impl MaximaThread {
 
         {
             let maxima = maxima_arc.lock().await;
-            // if maxima.start_lsx(maxima_arc.clone()).await.is_ok() {
-            //     info!("LSX started");
-            // } else {
-            //     info!("LSX failed to start!");
-            // }
+            if maxima.start_lsx(maxima_arc.clone()).await.is_ok() {
+                info!("LSX started");
+            } else {
+                info!("LSX failed to start!");
+            }
 
             let mut auth_storage = maxima.auth_storage().lock().await;
             let logged_in = auth_storage.logged_in().await?;
@@ -180,16 +180,16 @@ impl MaximaThread {
                     egui::Context::request_repaint(&ctx);
                 },
                 MaximaLibRequest::GetGamesRequest => {
-                    println!("recieved request to load games");
+                    debug!("recieved request to load games");
                     let maxima = maxima_arc.lock().await;
                     let logged_in = maxima.auth_storage().lock().await.current().is_some();
                     if !logged_in {
-                        println!("Ignoring request to load games, not logged in.");
+                        info!("Ignoring request to load games, not logged in.");
                         continue;
                     }
 
                     let owned_games = maxima.owned_games(1).await.unwrap();
-                    println!("{:?}", owned_games);
+                    debug!("{:?}", owned_games);
                     if let Some(games_list) = owned_games.owned_game_products() {
                         for game in games_list.items() {
                             // includes EA play titles, but also lesser editions of owned games
@@ -207,7 +207,7 @@ impl MaximaThread {
                                     } else { None };
 
                             // TODO:: there's probably a cleaner way to do this
-                            info!("jank ass shit incoming frfrfrfrfrfrfrfr");
+                            debug!("jank ass shit incoming frfrfrfrfrfrfrfr");
                             
                             let logo_url_option: Option<String> =
                             if let Some(img) = &images {
@@ -229,7 +229,7 @@ impl MaximaThread {
 
                             let game_logo: Option<Arc<GameImage>> = 
                             if let Some(logo_url) = logo_url_option {
-                                info!("sending GameImage struct for {}", game.product().game_slug().clone());
+                                debug!("sending GameImage struct for {}", game.product().game_slug().clone());
                                 Some(GameImage {
                                     retained: None,
                                     renderable: None,
@@ -313,14 +313,14 @@ impl MaximaThread {
                     let maxima = maxima_arc.lock().await;
                     let logged_in = maxima.auth_storage().lock().await.current().is_some();
                     if !logged_in {
-                        println!("Ignoring request to start game, not logged in.");
+                        info!("Ignoring request to start game, not logged in.");
                         continue;
                     }
 
-                    println!("got request to start game {:?}", offer_id);
+                    debug!("got request to start game {:?}", offer_id);
                     let maybe_path: Option<String> = if offer_id.eq("Origin.OFR.50.0001456") {
                         Some(
-                            "H:\\SteamLibrary\\steamapps\\common\\Titanfall2\\Titanfall2.exe"
+                            "/home/headass/.local/share/Steam/steamapps/common/Titanfall2/Titanfall2.exe"
                                 .to_owned(),
                         )
                     } else if offer_id.eq("Origin.OFR.50.0000739") {
@@ -336,12 +336,18 @@ impl MaximaThread {
                         
                     } else if offer_id.eq("Origin.OFR.50.0002688") {
                         Some(
-                            "F:\\Games\\ea\\Anthem\\Anthem.exe"
+                            "/kronos/Games/Oregon/Anthem/Anthem.exe"
                                 .to_owned(),
                         )
                     } else if offer_id.eq("Origin.OFR.50.0002148") {
                         Some(
                             "/home/battledash/games/battlefront/starwarsbattlefrontii.exe"
+                                .to_owned(),
+                        )
+                        
+                    } else if offer_id.eq("OFB-EAST:109552314") {
+                        Some(
+                            "/kronos/Games/Steam/steamapps/common/Battlefield 4/bf4.exe"
                                 .to_owned(),
                         )
                     } else {
@@ -355,29 +361,30 @@ impl MaximaThread {
                         vec![]
                     };
 
+                    drop(maxima);
                     let result =
                         launch::start_game(&offer_id, maybe_path, maybe_args, maxima_arc.clone())
                             .await;
                     if result.is_err() {
-                        println!("Failed to start game! Reason: {}", result.err().unwrap());
+                        error!("Failed to start game! Reason: {}", result.err().unwrap());
                     }
                 }
                 MaximaLibRequest::BitchesRequest => {
-                    println!("———————————No bitches?————————");
-                    println!("⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝");
-                    println!("⠸⡸⠜⠕⠕⠁⢁⢇⢏⢽⢺⣪⡳⡝⣎⣏⢯⢞⡿⣟⣷⣳⢯⡷⣽⢽⢯⣳⣫⠇");
-                    println!("⠀⠀⢀⢀⢄⢬⢪⡪⡎⣆⡈⠚⠜⠕⠇⠗⠝⢕⢯⢫⣞⣯⣿⣻⡽⣏⢗⣗⠏⠀");
-                    println!("⠀⠪⡪⡪⣪⢪⢺⢸⢢⢓⢆⢤⢀⠀⠀⠀⠀⠈⢊⢞⡾⣿⡯⣏⢮⠷⠁⠀⠀⠀");
-                    println!("⠀⠀⠀⠈⠊⠆⡃⠕⢕⢇⢇⢇⢇⢇⢏⢎⢎⢆⢄⠀⢑⣽⣿⢝⠲⠉⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⠀⠀⡿⠂⠠⠀⡇⢇⠕⢈⣀⠀⠁⠡⠣⡣⡫⣂⣿⠯⢪⠰⠂⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⠀⡦⡙⡂⢀⢤⢣⠣⡈⣾⡃⠠⠄⠀⡄⢱⣌⣶⢏⢊⠂⠀⠀⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⠀⢝⡲⣜⡮⡏⢎⢌⢂⠙⠢⠐⢀⢘⢵⣽⣿⡿⠁⠁⠀⠀⠀⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⠀⠨⣺⡺⡕⡕⡱⡑⡆⡕⡅⡕⡜⡼⢽⡻⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⠀⣼⣳⣫⣾⣵⣗⡵⡱⡡⢣⢑⢕⢜⢕⡝⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⣴⣿⣾⣿⣿⣿⡿⡽⡑⢌⠪⡢⡣⣣⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⡟⡾⣿⢿⢿⢵⣽⣾⣼⣘⢸⢸⣞⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
-                    println!("⠀⠀⠀⠀⠁⠇⠡⠩⡫⢿⣝⡻⡮⣒⢽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
-                    println!("————————————————————————————-—");
+                    info!("———————————No bitches?————————");
+                    info!("⠀⣞⢽⢪⢣⢣⢣⢫⡺⡵⣝⡮⣗⢷⢽⢽⢽⣮⡷⡽⣜⣜⢮⢺⣜⢷⢽⢝⡽⣝");
+                    info!("⠸⡸⠜⠕⠕⠁⢁⢇⢏⢽⢺⣪⡳⡝⣎⣏⢯⢞⡿⣟⣷⣳⢯⡷⣽⢽⢯⣳⣫⠇");
+                    info!("⠀⠀⢀⢀⢄⢬⢪⡪⡎⣆⡈⠚⠜⠕⠇⠗⠝⢕⢯⢫⣞⣯⣿⣻⡽⣏⢗⣗⠏⠀");
+                    info!("⠀⠪⡪⡪⣪⢪⢺⢸⢢⢓⢆⢤⢀⠀⠀⠀⠀⠈⢊⢞⡾⣿⡯⣏⢮⠷⠁⠀⠀⠀");
+                    info!("⠀⠀⠀⠈⠊⠆⡃⠕⢕⢇⢇⢇⢇⢇⢏⢎⢎⢆⢄⠀⢑⣽⣿⢝⠲⠉⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⠀⠀⡿⠂⠠⠀⡇⢇⠕⢈⣀⠀⠁⠡⠣⡣⡫⣂⣿⠯⢪⠰⠂⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⠀⡦⡙⡂⢀⢤⢣⠣⡈⣾⡃⠠⠄⠀⡄⢱⣌⣶⢏⢊⠂⠀⠀⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⠀⢝⡲⣜⡮⡏⢎⢌⢂⠙⠢⠐⢀⢘⢵⣽⣿⡿⠁⠁⠀⠀⠀⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⠀⠨⣺⡺⡕⡕⡱⡑⡆⡕⡅⡕⡜⡼⢽⡻⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⠀⣼⣳⣫⣾⣵⣗⡵⡱⡡⢣⢑⢕⢜⢕⡝⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⣴⣿⣾⣿⣿⣿⡿⡽⡑⢌⠪⡢⡣⣣⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⡟⡾⣿⢿⢿⢵⣽⣾⣼⣘⢸⢸⣞⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
+                    info!("⠀⠀⠀⠀⠁⠇⠡⠩⡫⢿⣝⡻⡮⣒⢽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀");
+                    info!("————————————————————————————-—");
                 }
                 MaximaLibRequest::ShutdownRequest => {
                     break 'outer

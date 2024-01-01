@@ -3,6 +3,7 @@
 use serde::Deserialize;
 use serde_json;
 use std::fs;
+use log::error;
 
 #[derive(Deserialize)]
 pub struct LocalizedStrings {
@@ -125,7 +126,7 @@ impl TranslationManager {
                 localization : s
             })
         } else {
-            println!("Couldn't read locale file!");
+            error!("Couldn't read locale file!");
             None
         }
     }

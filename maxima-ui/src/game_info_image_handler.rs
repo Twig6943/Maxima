@@ -11,6 +11,7 @@ use std::result::Result::Ok;
 use anyhow::{bail, Result};
 use egui::TextureId;
 use core::slice::SlicePattern;
+use log::{debug, error, info};
 
 use crate::GameImage;
 use crate::GameInfo;
@@ -64,31 +65,32 @@ impl GameImageHandler {
               GameImageType::Logo => "logo.png",
             };
             let slug0 = received.game_slug.clone();
-            println!("[Loader thread] received request to load {} for game \"{}\"", filename, slug0);
+            debug!("[Loader thread] received request to load {} for game \"{}\"", filename, slug0);
 
-            if !fs::metadata(format!("./res/{}/",slug0.clone())).is_ok() { // folder is missing
-              fs::create_dir(format!("./res/{}/",slug0.clone())).expect("FS ERROR, couldn't create a directory")
+            if !fs::metadata(format!("./res/{}/",&slug0)).is_ok() { // folder is missing
+              fs::create_dir(format!("./res/{}/",&slug0)).expect("FS ERROR, couldn't create a directory")
             }
 
-            if !fs::metadata(format!("./res/{}/{}",slug0.clone(), filename.clone())).is_ok() { //image hasn't been cached yet
+            if !fs::metadata(format!("./res/{}/{}",&slug0, &filename)).is_ok() { //image hasn't been cached yet
               if let Some(img_url) = received.url {
-                println!("Downloading image at {:?}", img_url);
+                info!("Downloading image at {:?}", img_url);
                 let result = reqwest::get(&img_url).await;
                 if let Ok(response) = result {
                   if let Ok(body) = response.bytes().await {  
-                    if let Ok(mut file) = File::create(format!("./res/{}/{}",slug0.clone(), filename.clone())).await {
+                    let filename = format!("./res/{}/{}",&slug0, &filename);
+                    if let Ok(mut file) = File::create(&filename).await {
                       let copy_result = io::copy(&mut body.as_slice(), &mut file).await;
                       if copy_result.is_ok() {
-                        println!("Copied file!")
+                        debug!("Copied file!")
                       } else {
-                        println!("Failed to copy file! Reason: {:?}", copy_result.err())
+                        error!("Failed to copy file! Reason: {:?}", copy_result.err())
                       }
                     } else {
-                      println!("Failed to open file!");
+                      error!("Failed to create {}", &filename);
                     }
                   }
                 } else {
-                  println!("Failed to download {}! Reason: {:?}", img_url.clone(), result.err());
+                  error!("Failed to download {}! Reason: {:?}", &img_url, &result);
                   
                 }
               }
@@ -125,7 +127,7 @@ impl GameImageHandler {
             let strng = received.game_slug.clone();
             let strng1 = received.game_slug.clone();
             
-            println!("[Loader thread] received request to load {} for game \"{}\"", img_type, strng);
+            debug!("[Loader thread] received request to load {} for game \"{}\"", img_type, strng);
             if !fs::metadata(format!("./res/{}/",strng.clone())).is_ok() {
 
             } else {
@@ -177,10 +179,10 @@ impl Drop for GameImageHandler {
 
 impl GameImageHandler {
   pub fn shutdown(&self) {
-    println!("trying to kill image handler loader thread");
+    debug!("trying to kill image handler loader thread");
     self.loader_thread.abort();
     if !self.loader_thread.is_finished() {
-      println!("fuck you :3");
+      error!("couldn't kill image handler loader thread");
     }
   }
 }
