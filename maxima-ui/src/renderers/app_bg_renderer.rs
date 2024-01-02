@@ -1,12 +1,10 @@
-// hacky shit to get steam-style background hero blur
-// :)
-
 use std::sync::Arc;
 use eframe::egui_glow;
 use eframe::glow::{BLEND, TEXTURE_2D};
 use egui::{Vec2, TextureId};
 use egui::mutex::Mutex;
 use egui_glow::glow;
+use log::error;
 
 /// FUCK
 pub struct AppBgRenderer {
@@ -54,7 +52,7 @@ impl ABGUnsafe {
                 .expect("Cannot create OpenGL shader program");
             if !glsl_version.is_new_shader_interface() {
                 //uh? not sure what else to do here but fuck you lmao!
-                println!("no painting for shader version {:?}", glsl_version);
+                error!("no painting for shader version {:?}", glsl_version);
                 return None;
             }
 
