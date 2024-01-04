@@ -2,7 +2,6 @@
 
 use anyhow::{bail, Result};
 
-use erased_serde::serialize_trait_object;
 use log::debug;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
