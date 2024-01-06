@@ -92,7 +92,7 @@ pub fn run_wine_command<I: IntoIterator<Item = T>, T:AsRef<OsStr>>(
     let mut binding = Command::new(path);
     let mut output = binding
         .env("WINEPREFIX", wine_prefix_dir()?)
-        .env("WINEDLLOVERRIDES", "winemenubuilder.exe=d") // Disable winemenubuilder so it doesnt mess with file associations
+        .env("WINEDLLOVERRIDES", "CryptBase,bcrypt,dxgi,d3d11,d3d12,d3d12core=n,b;winemenubuilder.exe=d") // Disable winemenubuilder so it doesnt mess with file associations
         .env("WINEDLLPATH", format!("{}:{}", maxima_dir()?.join("wine/lib64/wine").display(), maxima_dir()?.join("wine/lib/wine").display()))
 
         // These should probably be settings for the user to enable/disable
