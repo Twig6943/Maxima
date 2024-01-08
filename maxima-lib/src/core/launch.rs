@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use crate::{
     core::ecommerce::request_offer_data,
-    ooa::{request_license, save_licenses},
+    ooa::request_and_save_license,
     util::{
         registry::{bootstrap_path, read_game_path},
         simple_crypto,
@@ -71,15 +71,10 @@ pub async fn start_game(
 
     let mut maxima = maxima_arc.lock().await;
     info!("Retrieving data about '{}'...", offer_id);
-    
+
     let access_token = &maxima.access_token().await?;
 
-    let offer = request_offer_data(
-        access_token,
-        offer_id,
-        maxima.locale.full_str(),
-    )
-    .await?;
+    let offer = request_offer_data(access_token, offer_id, maxima.locale.full_str()).await?;
 
     let content_id = offer
         .publishing
@@ -93,17 +88,6 @@ pub async fn start_game(
         "Requesting pre-game license for {}...",
         offer.localizable_attributes.display_name
     );
-
-    let license = request_license(
-        content_id.as_str(),
-        "ca5f9ae34d7bcd895e037a17769de60338e6e84", // Need to figure out how this is calculated
-        &maxima.access_token().await?,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
-    save_licenses(&license).unwrap();
 
     // Need to move this into Maxima and have a "current game" system
     let path = if game_path_override.is_some() {
@@ -123,6 +107,8 @@ pub async fn start_game(
 
     let path = path.to_str().unwrap();
     info!("Game path: {}", path);
+
+    request_and_save_license(&maxima.access_token().await?, &content_id, path.into()).await?;
 
     // Append args from env
     if let Ok(args) = env::var("MAXIMA_LAUNCH_ARGS") {
@@ -179,7 +165,6 @@ pub async fn start_game(
     let child = child.spawn().expect("Failed to start child");
 
     maxima.playing = Some(ActiveGameContext::new(offer.clone(), child));
-    drop(maxima);
 
     Ok(())
 }

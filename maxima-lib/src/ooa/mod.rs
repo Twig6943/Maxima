@@ -35,6 +35,56 @@ pub struct License {
     pub start_time: String,
 }
 
+#[derive(PartialEq, Clone, Copy)]
+pub enum OOAState {
+    /// We don't need to request a license for this game
+    Disabled,
+    /// This game expects the license to have its signature base64 encoded
+    SignatureEncoded,
+    /// This game expects the license to have its signature decoded
+    SignatureDecoded,
+}
+
+pub fn detect_ooa_state(game_path: PathBuf) -> OOAState {
+    let core_dir = game_path.join("Core");
+    if !core_dir.exists() {
+        return OOAState::Disabled;
+    }
+
+    if core_dir.join("activation.exe").exists() {
+        return OOAState::SignatureEncoded;
+    }
+
+    OOAState::SignatureDecoded
+}
+
+pub async fn request_and_save_license(
+    access_token: &str,
+    content_id: &str,
+    mut game_path: PathBuf,
+) -> Result<()> {
+    if game_path.is_file() {
+        game_path = game_path.parent().unwrap().to_path_buf();
+    }
+
+    let state = detect_ooa_state(game_path);
+    if state == OOAState::Disabled {
+        return Ok(());
+    }
+
+    let license = request_license(
+        content_id,
+        "ca5f9ae34d7bcd895e037a17769de60338e6e84",
+        access_token,
+        None,
+        None,
+    )
+    .await?;
+    save_licenses(&license, state).unwrap();
+
+    Ok(())
+}
+
 pub async fn request_license(
     content_id: &str,
     machine_hash: &str,
@@ -79,7 +129,7 @@ pub fn decrypt_license(data: &[u8]) -> Result<License> {
     Ok(quick_xml::de::from_str(data.as_str())?)
 }
 
-pub fn save_license(license: &License, path: PathBuf) -> Result<()> {
+pub fn save_license(license: &License, state: OOAState, path: PathBuf) -> Result<()> {
     let mut data = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>".to_string();
     data.push_str(quick_xml::se::to_string(license)?.as_str());
 
@@ -90,10 +140,8 @@ pub fn save_license(license: &License, path: PathBuf) -> Result<()> {
     let cipher = Cipher::aes_128_cbc();
     let encrypted_data = encrypt(cipher, &OOA_CRYPTO_KEY, Some(&[0; 16]), data.as_bytes())?;
 
-    let decode_b64 = false;
-
     let mut signature = license.signature.as_bytes().to_vec();
-    if decode_b64 {
+    if state == OOAState::SignatureDecoded {
         signature = general_purpose::STANDARD.decode(&signature)?;
     }
 
@@ -110,12 +158,18 @@ pub fn save_license(license: &License, path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn save_licenses(license: &License) -> Result<()> {
+pub fn save_licenses(license: &License, state: OOAState) -> Result<()> {
     let path = get_license_dir()?;
 
-    save_license(&license, path.join(format!("{}.dlf", license.content_id)))?;
     save_license(
         &license,
+        state,
+        path.join(format!("{}.dlf", license.content_id)),
+    )?;
+
+    save_license(
+        &license,
+        state,
         path.join(format!("{}_cached.dlf", license.content_id)),
     )?;
 

@@ -7,7 +7,7 @@ use crate::{
         types::{LSXRequestLicense, LSXRequestLicenseResponse, LSXResponseType},
     },
     make_lsx_handler_response,
-    ooa::{request_license, save_licenses},
+    ooa::request_license,
 };
 
 pub async fn handle_license_request(
@@ -41,7 +41,6 @@ pub async fn handle_license_request(
     }
 
     info!("Successfully retrieved license tokens");
-    save_licenses(&license)?;
 
     make_lsx_handler_response!(Response, RequestLicenseResponse, { attr_License: license.game_token.unwrap() })
 }
