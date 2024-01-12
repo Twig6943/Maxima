@@ -208,7 +208,16 @@ pub fn is_service_valid() -> Result<bool> {
 
     let service = result.unwrap();
     let config = service.query_config()?;
-    if config.executable_path != service_path()? {
+    let config_path = PathBuf::from({
+        let path = config.executable_path.to_str().unwrap();
+        if path.starts_with("\"") && path.ends_with("\"") {
+            &path[1..path.len() - 1]
+        } else {
+            path
+        }
+    });
+
+    if config_path != service_path()? {
         debug!(
             "Service config invalid: {:?}/{:?}",
             config.executable_path,
