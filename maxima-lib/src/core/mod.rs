@@ -15,6 +15,11 @@ pub mod background_service {
     include!("background_service_win.rs");
 }
 
+#[cfg(target_os = "linux")]
+pub mod background_service {
+    include!("background_service_nix.rs");
+}
+
 use std::{
     env,
     fs::{create_dir_all, File},

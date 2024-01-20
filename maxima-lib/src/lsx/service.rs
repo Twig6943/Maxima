@@ -55,7 +55,13 @@ pub async fn start_server(port: u16, maxima: LockedMaxima) -> Result<()> {
 
         info!("New LSX connection: {:?}", addr);
 
-        let mut conn = Connection::new(maxima.clone(), socket);
+        let conn = Connection::new(maxima.clone(), socket).await;
+        if let Err(err) = conn {
+            warn!("Failed to establish LSX connection: {}", err);
+            continue;
+        }
+
+        let mut conn = conn.unwrap();
         conn.send_challenge().await.unwrap();
         connections.push(conn);
 

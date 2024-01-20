@@ -134,7 +134,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(maxima: LockedMaxima, stream: TcpStream) -> Self {
+    pub async fn new(maxima_arc: LockedMaxima, stream: TcpStream) -> Result<Self> {
         stream.set_nodelay(true).unwrap();
         stream.set_nonblocking(true).unwrap();
         stream
@@ -144,7 +144,8 @@ impl Connection {
         let mut pid = None;
 
         // First attempt to look up the PID through the TCP table
-        if !cfg!(unix) {
+        // Disabled for now
+        if false && !cfg!(unix) {
             let mut i = 0;
             while pid.is_none() && i < 10 {
                 let result = get_process_id(stream.peer_addr().unwrap().port());
@@ -158,35 +159,48 @@ impl Connection {
                 std::thread::sleep(Duration::from_secs(1));
                 i += 1;
             }
-        } else {
-            // Not really needed on linux, this is mainly for games with anti-cheat launchers and Kyber injection
-            pid = Some(0);
         }
 
-        // If that didn't work, fall back to the exe name we know. We try the TCP table
-        // first to handle games with wrapping launchers, so if we need to do this for one
-        // of those games, we'll probably run into issues
+        let maxima: MutexGuard<'_, Maxima> = maxima_arc.lock().await;
+        let playing = maxima.playing();
+        if playing.is_none() {
+            stream.shutdown(std::net::Shutdown::Both);
+            bail!("There is no active game context, LSX connection cannot be established");
+        }
+
+        let playing = playing.as_ref().unwrap();
+
+        // If that didn't work, fall back to searching for processes with our MXLaunchId
         if pid.is_none() {
-            warn!("Failed to find PID through TCP table, falling back to known executable name");
+            warn!("Failed to find PID through TCP table, falling back to environment variables");
             let sys = System::new_all();
-            for p in sys.processes_by_exact_name("starwarsbattlefrontii.exe") {
-                pid = Some(p.pid().as_u32());
+            for e in sys.processes() {
+                let (p_pid, process) = e;
+                for ele in process.environ() {
+                    let (key, value) = ele.split_once("=").unwrap();
+                    if key != "MXLaunchId" || value != playing.launch_id() {
+                        continue;
+                    }
+
+                    pid = Some(p_pid.as_u32());
+                    break;
+                }
             }
         }
 
         let state = Arc::new(RwLock::new(ConnectionState {
-            maxima: maxima.clone(),
+            maxima: maxima_arc.clone(),
             challenge: CHALLENGE_KEY.to_string(),
             encryption: EncryptionState::Disabled,
             pid: pid.expect("Failed to get process ID"),
             queued_messages: Vec::new(),
         }));
 
-        Self {
-            maxima,
+        Ok(Self {
+            maxima: maxima_arc.clone(),
             stream,
             state,
-        }
+        })
     }
 
     // State

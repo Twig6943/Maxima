@@ -1,6 +1,7 @@
 use base64::{engine::general_purpose, Engine};
 use derive_getters::Getters;
 use log::info;
+use uuid::Uuid;
 use std::{env, path::PathBuf, sync::Arc, vec::Vec};
 use tokio::{
     process::{Child, Command},
@@ -34,6 +35,7 @@ pub struct LibraryInjection {
 
 #[derive(Getters)]
 pub struct ActiveGameContext {
+    launch_id: String,
     offer: CommerceOffer,
     injections: Vec<LibraryInjection>,
     process: Child,
@@ -41,8 +43,9 @@ pub struct ActiveGameContext {
 }
 
 impl ActiveGameContext {
-    pub fn new(offer: CommerceOffer, process: Child) -> Self {
+    pub fn new(launch_id: &str, offer: CommerceOffer, process: Child) -> Self {
         Self {
+            launch_id: launch_id.to_owned(),
             offer,
             injections: Vec::new(),
             process,
@@ -133,8 +136,11 @@ pub async fn start_game(
     // EALaunchOOAUserPass
     // EAOnErrorExitRetCode
 
+    let launch_id = Uuid::new_v4().to_string();
+
     child
         .current_dir(PathBuf::from(path).parent().unwrap())
+        .env("MXLaunchId", launch_id.to_owned())
         .env("EAAuthCode", "unavailable")
         .env("EAConnectionId", offer_id.to_owned())
         .env("EAEgsProxyIpcPort", "0")
@@ -164,7 +170,7 @@ pub async fn start_game(
 
     let child = child.spawn().expect("Failed to start child");
 
-    maxima.playing = Some(ActiveGameContext::new(offer.clone(), child));
+    maxima.playing = Some(ActiveGameContext::new(&launch_id, offer.clone(), child));
 
     Ok(())
 }
