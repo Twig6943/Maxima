@@ -11,13 +11,17 @@ pub mod service_layer;
 pub mod settings;
 
 #[cfg(target_os = "windows")]
-pub mod background_service {
-    include!("background_service_win.rs");
-}
+mod background_service_win;
 
 #[cfg(target_os = "linux")]
+mod background_service_nix;
+
 pub mod background_service {
-    include!("background_service_nix.rs");
+    #[cfg(target_os = "windows")]
+    pub use super::background_service_win::*;
+
+    #[cfg(target_os = "linux")]
+    pub use super::background_service_nix::*;
 }
 
 use std::{

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, fs::{create_dir_all, File, self, remove_dir_all}, io::Read, process::Command, ffi::OsStr};
+use std::{path::PathBuf, fs::{create_dir_all, File, self, remove_dir_all}, io::Read, process::{Command, Stdio, ExitStatus}, ffi::OsStr};
 
 use anyhow::{Result, bail};
 use flate2::read::GzDecoder;
@@ -85,12 +85,13 @@ pub fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     program: &str,
     arg: T,
     args: Option<I>,
-) -> Result<()> {
+    want_output: bool,
+) -> Result<String> {
     let path = maxima_dir()?.join(format!("wine/bin/{}", program));
 
     // Create command with all necessary wine env variables
     let mut binding = Command::new(path);
-    let mut output = binding
+    let mut child = binding
         .env("WINEPREFIX", wine_prefix_dir()?)
         .env("WINEDLLOVERRIDES", "CryptBase,bcrypt,dxgi,d3d11,d3d12,d3d12core=n,b;winemenubuilder.exe=d") // Disable winemenubuilder so it doesnt mess with file associations
         .env("WINEDLLPATH", format!("{}:{}", maxima_dir()?.join("wine/lib64/wine").display(), maxima_dir()?.join("wine/lib/wine").display()))
@@ -108,24 +109,32 @@ pub fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
         .arg(arg);
 
     if let Some(arguments) = args {
-        output = output.args(arguments);
+        child = child.args(arguments);
     }
 
-    let status = output.spawn()?.wait()?;
+    let status: ExitStatus;
+    let mut output_str = String::new();
 
-    // Start wineserver so we actually wait until the wine process finished (idk its weird)
-    let wine_server_path = maxima_dir()?.join("wine/bin/wineserver");
-    let mut wine_server_binding = Command::new(wine_server_path);
-    let wine_server = wine_server_binding
-        .env("WINEPREFIX", wine_prefix_dir()?)
-        .arg("--wait");
-    wine_server.spawn()?.wait()?;
+    if want_output {
+        let output = child.stdout(Stdio::piped()).spawn()?.wait_with_output()?;
+        output_str = String::from_utf8_lossy(&output.stdout).to_string();
+        status = output.status;
+    } else {
+        status = child.spawn()?.wait()?;
+        // Start wineserver to wait for the process to exit
+        let wine_server_path = maxima_dir()?.join("wine/bin/wineserver");
+        let mut wine_server_binding = Command::new(wine_server_path);
+        let wine_server = wine_server_binding
+            .env("WINEPREFIX", wine_prefix_dir()?)
+            .arg("--wait");
+        wine_server.spawn()?.wait()?;
+    };
 
-    if status.success() {
-        return Ok(());
+    if !status.success() {
+        bail!("{}", status.code().unwrap());
     }
 
-    bail!("{}", status.code().unwrap());
+    Ok(output_str.to_string())
 }
 
 pub async fn install_wine() -> Result<()> {
@@ -148,7 +157,7 @@ pub async fn install_wine() -> Result<()> {
     versions.wine = release.tag_name;
     set_versions(versions)?;
 
-    run_wine_command("wine", "wineboot", Some(vec![" --init"]))?;
+    run_wine_command("wine", "wineboot", Some(vec![" --init"]), false)?;
 
     Ok(())
 }
@@ -183,7 +192,7 @@ fn extract_wine(archive_path: &PathBuf) -> Result<()> {
 }
 
 fn add_dll_override(dll_name: &str) -> Result<()> {
-    run_wine_command("wine", "reg", Some(vec!["add", "HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides", "/v", dll_name,  "/d", "native,builtin", "/f"]))?;
+    run_wine_command("wine", "reg", Some(vec!["add", "HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides", "/v", dll_name,  "/d", "native,builtin", "/f"]), false)?;
 
     Ok(())
 }
@@ -277,8 +286,8 @@ fn extract_dynamic_archive<R>(reader: R, label: &str, version: &str) -> Result<(
 }
 
 pub fn setup_wine_registry() -> Result<()> {
-    run_wine_command("wine", "reg", Some(vec!["add", "HKLM\\Software\\Electronic Arts\\EA Desktop", "/v", "InstallSuccessful",  "/d", "true", "/f", "/reg:64"]))?;
-    run_wine_command("wine", "reg", Some(vec!["add", "HKLM\\Software\\Origin", "/v", "ClientPath",  "/d", "C:/Windows/System32/conhost.exe", "/f", "/reg:32"]))?;
+    run_wine_command("wine", "reg", Some(vec!["add", "HKLM\\Software\\Electronic Arts\\EA Desktop", "/v", "InstallSuccessful",  "/d", "true", "/f", "/reg:64"]), false)?;
+    run_wine_command("wine", "reg", Some(vec!["add", "HKLM\\Software\\Origin", "/v", "ClientPath",  "/d", "C:/Windows/System32/conhost.exe", "/f", "/reg:32"]), false)?;
 
     Ok(())
 }

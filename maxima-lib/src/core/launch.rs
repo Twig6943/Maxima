@@ -36,6 +36,7 @@ pub struct LibraryInjection {
 #[derive(Getters)]
 pub struct ActiveGameContext {
     launch_id: String,
+    game_path: String,
     offer: CommerceOffer,
     injections: Vec<LibraryInjection>,
     process: Child,
@@ -43,9 +44,10 @@ pub struct ActiveGameContext {
 }
 
 impl ActiveGameContext {
-    pub fn new(launch_id: &str, offer: CommerceOffer, process: Child) -> Self {
+    pub fn new(launch_id: &str, game_path: &str, offer: CommerceOffer, process: Child) -> Self {
         Self {
             launch_id: launch_id.to_owned(),
+            game_path: game_path.to_owned(),
             offer,
             injections: Vec::new(),
             process,
@@ -108,6 +110,7 @@ pub async fn start_game(
             .join("starwarsbattlefrontii.exe")
     };
 
+    let dir = path.parent().unwrap().to_str().unwrap();
     let path = path.to_str().unwrap();
     info!("Game path: {}", path);
 
@@ -170,7 +173,7 @@ pub async fn start_game(
 
     let child = child.spawn().expect("Failed to start child");
 
-    maxima.playing = Some(ActiveGameContext::new(&launch_id, offer.clone(), child));
+    maxima.playing = Some(ActiveGameContext::new(&launch_id, dir, offer.clone(), child));
 
     Ok(())
 }
@@ -184,17 +187,17 @@ pub async fn linux_setup() -> Result<()> {
 
     info!("Verifying wine dependencies...");
 
-    if !check_wine_validity()? {
+    if false && !check_wine_validity()? {
         install_wine().await?;
     }
 
     setup_wine_registry()?;
 
-    if !check_dxvk_validity()? {
+    if false && !check_dxvk_validity()? {
         wine_install_dxvk().await?;
     }
 
-    if !check_vkd3d_validity()? {
+    if false && !check_vkd3d_validity()? {
         wine_install_vkd3d().await?;
     }
 

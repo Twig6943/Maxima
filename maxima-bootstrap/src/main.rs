@@ -101,7 +101,7 @@ fn platform_launch(args: BootstrapLaunchArgs) -> Result<()> {
 fn platform_launch(args: BootstrapLaunchArgs) -> Result<()> {
     use maxima::unix::wine::run_wine_command;
 
-    run_wine_command("wine", args.path, Some(args.args))?;
+    run_wine_command("wine", args.path, Some(args.args), false)?;
 
     Ok(())
 }

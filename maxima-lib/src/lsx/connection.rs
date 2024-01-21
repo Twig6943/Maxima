@@ -1,6 +1,7 @@
 use std::{
     io::{ErrorKind, Read, Write},
     net::TcpStream,
+    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
@@ -11,11 +12,11 @@ use derive_getters::Getters;
 use lazy_static::lazy_static;
 use log::{debug, error, warn};
 use regex::Regex;
-use sysinfo::{PidExt, ProcessExt, System, SystemExt};
+use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 use tokio::sync::{MutexGuard, RwLock};
 
 use crate::{
-    core::{LockedMaxima, Maxima, MaximaEvent},
+    core::{launch::ActiveGameContext, LockedMaxima, Maxima, MaximaEvent},
     lsx::types::LSXRequestType,
     util::simple_crypto::{simple_decrypt, simple_encrypt},
 };
@@ -106,11 +107,7 @@ impl ConnectionState {
     }
 
     pub async fn access_token(&mut self) -> Result<String> {
-        Ok(self
-            .maxima()
-            .await
-            .access_token()
-            .await?)
+        Ok(self.maxima().await.access_token().await?)
     }
 
     pub fn queue_message(&mut self, message: LSX) -> Result<()> {
@@ -125,6 +122,52 @@ impl ConnectionState {
         self.queued_messages.push(str);
         Ok(())
     }
+}
+
+pub fn get_os_pid(context: &ActiveGameContext) -> Result<u32> {
+    let mut pid = None;
+
+    let sys = System::new_all();
+    for e in sys.processes() {
+        let (p_pid, process) = e;
+        if process.cmd().is_empty() {
+            continue;
+        }
+
+        let mut cmd = process.cmd()[0].to_owned();
+        if !cmd.starts_with("Z:") {
+            continue;
+        }
+
+        cmd = cmd.replace("Z:", "").replace('\\', "/");
+        if !cmd.starts_with(context.game_path()) {
+            continue;
+        }
+
+        for ele in process.environ() {
+            let (key, value) = ele.split_once('=').unwrap_or((ele, ""));
+            if key != "MXLaunchId" || value != context.launch_id() {
+                continue;
+            }
+
+            pid = Some(p_pid.as_u32());
+            break;
+        }
+    }
+
+    Ok(pid.unwrap_or(0))
+}
+
+#[cfg(target_os = "windows")]
+pub fn get_wine_pid(launch_id: &str, os_pid: u32) -> Result<u32> {
+    Ok(os_pid)
+}
+
+#[cfg(target_os = "linux")]
+pub fn get_wine_pid(launch_id: &str, name: &str) -> Result<u32> {
+    use crate::core::background_service::wine_get_pid;
+
+    wine_get_pid(launch_id, name)
 }
 
 pub struct Connection {
@@ -148,24 +191,29 @@ impl Connection {
             bail!("There is no active game context, LSX connection cannot be established");
         }
 
-        let playing = playing.as_ref().unwrap();
-        let mut pid = None;
+        let context = playing.as_ref().unwrap();
 
-        let sys = System::new_all();
-        for e in sys.processes() {
-            let (p_pid, process) = e;
-            for ele in process.environ() {
-                let (key, value) = ele.split_once('=').unwrap_or((ele, ""));
-                if key != "MXLaunchId" || value != playing.launch_id() {
-                    continue;
-                }
+        let mut pid = get_os_pid(context);
+        if let Ok(os_pid) = pid {
+            let sys = System::new_all();
+            if let Some(process) = sys.process(Pid::from_u32(os_pid)) {
+                let filename = PathBuf::from(
+                    process.cmd()[0]
+                        .to_owned()
+                        .replace("Z:", "")
+                        .replace('\\', "/"),
+                )
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned();
 
-                pid = Some(p_pid.as_u32());
-                break;
+                pid = get_wine_pid(&context.launch_id(), &filename);
             }
         }
 
-        if pid.is_none() {
+        if pid.is_err() || pid.as_ref().unwrap() == &0 {
             warn!("Failed to find PID through launch ID, things may not work!");
         }
 
@@ -173,7 +221,7 @@ impl Connection {
             maxima: maxima_arc.clone(),
             challenge: CHALLENGE_KEY.to_string(),
             encryption: EncryptionState::Disabled,
-            pid: pid.expect("Failed to get process ID"),
+            pid: pid.unwrap_or(0),
             queued_messages: Vec::new(),
         }));
 
