@@ -97,15 +97,41 @@ impl AuthAccount {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct AuthStorage {
     accounts: HashMap<String, AuthAccount>,
     selected: Option<String>,
+
+    #[serde(skip_serializing, skip_deserializing)]
+    can_save: bool,
 }
 
 pub type LockedAuthStorage = Arc<Mutex<AuthStorage>>;
 
+impl Default for AuthStorage {
+    fn default() -> Self {
+        Self {
+            accounts: Vec::new(),
+            selected: None,
+            can_save: true,
+        }
+    }
+}
+
 impl AuthStorage {
+    /// Directly create AuthStorage from a token response
+    pub async fn from_token_response(response: &TokenResponse) -> Result<LockedAuthStorage> {
+        let account = AuthAccount::from_token_response(response).await?;
+
+        let storage = Self {
+            accounts: HashMap::from([("direct".to_owned(), account)]),
+            selected: Some("direct".to_owned()),
+            can_save: false,
+        };
+
+        Ok(Arc::new(Mutex::new(storage)))
+    }
+
     /// This is to be used only in circumstances where you want
     /// to make a single request to a single system with a
     /// single account. This will not be persisted, and
@@ -116,6 +142,7 @@ impl AuthStorage {
         let storage = Self {
             accounts: HashMap::from([("direct".to_owned(), account)]),
             selected: Some("direct".to_owned()),
+            can_save: false,
         };
 
         Arc::new(Mutex::new(storage))
@@ -181,6 +208,10 @@ impl AuthStorage {
     }
 
     fn save_if_dirty(&self) -> Result<()> {
+        if !self.can_save {
+            return Ok(());
+        }
+
         let needed = self.accounts.iter().any(|a| a.1.dirty);
         if needed {
             self.save()?;
