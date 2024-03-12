@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use egui::Context;
 use maxima::{
     core::{
-        auth::{context::AuthContext, login, nucleus_connect_token},
+        auth::{context::AuthContext, login, nucleus_token_exchange},
         LockedMaxima,
     },
     util::native::take_foreground_focus,
@@ -22,7 +22,7 @@ pub async fn login_oauth(
         let mut auth_storage = maxima.auth_storage().lock().await;
         let mut context = AuthContext::new()?;
         login::begin_oauth_login_flow(&mut context).await?;
-        let token_res = nucleus_connect_token(&context).await?;
+        let token_res = nucleus_token_exchange(&context).await?;
         auth_storage.add_account(&token_res).await?;
     }
 

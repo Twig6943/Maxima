@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use egui::Context;
 use log::info;
 use maxima::core::{
-    auth::{context::AuthContext, execute_auth_exchange, nucleus_connect_token},
+    auth::{context::AuthContext, nucleus_auth_exchange, nucleus_token_exchange},
     clients::JUNO_PC_CLIENT_ID,
     LockedMaxima,
 };
@@ -37,7 +37,7 @@ pub async fn login_creds(
 
     let mut auth_context = AuthContext::new()?;
     auth_context.set_access_token(&login_result.unwrap());
-    let code = execute_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
+    let code = nucleus_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
     auth_context.set_code(&code);
 
     if auth_context.code().is_none() {
@@ -49,7 +49,7 @@ pub async fn login_creds(
         return Ok(());
     }
 
-    let token_res = nucleus_connect_token(&auth_context).await;
+    let token_res = nucleus_token_exchange(&auth_context).await;
 
     if token_res.is_err() {
         let desc = token_res.err().unwrap().to_string();

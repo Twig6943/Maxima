@@ -18,7 +18,7 @@ pub mod zip;
 
 #[derive(Clone)]
 pub struct ServiceAvailableBuilds {
-    builds: Vec<ServiceAvailableBuild>,
+    pub builds: Vec<ServiceAvailableBuild>,
 }
 
 impl ServiceAvailableBuilds {

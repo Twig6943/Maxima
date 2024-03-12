@@ -16,7 +16,7 @@ use super::{
     endpoints::API_NUCLEUS_TOKEN,
 };
 
-pub async fn execute_auth_exchange<'a>(
+pub async fn nucleus_auth_exchange<'a>(
     auth_context: &AuthContext<'a>,
     client_id: &str,
     mut response_type: &str,
@@ -80,7 +80,7 @@ pub struct TokenResponse {
     refresh_token: String,
 }
 
-pub async fn nucleus_connect_token(auth_context: &AuthContext<'_>) -> Result<TokenResponse> {
+pub async fn nucleus_token_exchange(auth_context: &AuthContext<'_>) -> Result<TokenResponse> {
     assert!(auth_context.code().is_some());
 
     let query = vec![

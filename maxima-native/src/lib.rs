@@ -9,7 +9,7 @@ use anyhow::{bail, Error, Result};
 
 use maxima::{
     core::{
-        auth::{context::AuthContext, execute_auth_exchange, login}, clients::JUNO_PC_CLIENT_ID, launch, Maxima, MaximaEvent
+        auth::{context::AuthContext, nucleus_auth_exchange, login}, clients::JUNO_PC_CLIENT_ID, launch, Maxima, MaximaEvent
     },
     util::{
         log::init_logger,
@@ -26,7 +26,7 @@ use maxima::{
     },
 };
 
-use maxima::core::auth::nucleus_connect_token;
+use maxima::core::auth::nucleus_token_exchange;
 use tokio::{runtime::Runtime, sync::Mutex};
 
 pub const ERR_SUCCESS: usize = 0;
@@ -201,7 +201,7 @@ pub extern "C" fn maxima_login(runtime: *mut *mut Runtime, token_out: *mut *mut 
         return ERR_CHECK_LE;
     }
 
-    let token = rt.block_on(async { nucleus_connect_token(&auth_context).await });
+    let token = rt.block_on(async { nucleus_token_exchange(&auth_context).await });
     if token.is_err() {
         set_last_error_from_result(token);
         return ERR_LOGIN_FAILED;
@@ -243,10 +243,10 @@ pub extern "C" fn maxima_login_manual(runtime: *mut *mut Runtime, mx: *mut *mut 
 
         let mut auth_context = auth_context.unwrap();
         auth_context.set_access_token(&token.unwrap());
-        let code = execute_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
+        let code = nucleus_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
         auth_context.set_code(&code);
 
-        let token_res = nucleus_connect_token(&auth_context).await;
+        let token_res = nucleus_token_exchange(&auth_context).await;
         if token_res.is_err() {
             bail!("Login failed: {}", token_res.err().unwrap().to_string());
         }
@@ -281,28 +281,86 @@ pub extern "C" fn maxima_login_manual(runtime: *mut *mut Runtime, mx: *mut *mut 
 #[no_mangle]
 pub unsafe extern "C" fn maxima_access_token(runtime: *mut *mut Runtime, mx: *mut *mut c_void, token_out: *mut *const c_char) -> usize {
     let rt = Box::from_raw(*runtime);
-    let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
 
     let result = rt.block_on(async {
         let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
-        let maxima = maxima_arc.lock().await;
-        let mut auth_storage = maxima.auth_storage().lock().await;
-        auth_storage.access_token().await
+
+        let access_token = {
+            let maxima = maxima_arc.lock().await;
+            let mut auth_storage = maxima.auth_storage().lock().await;
+            auth_storage.access_token().await
+        };
+
+        *mx = Arc::into_raw(maxima_arc) as *mut c_void;
+
+        access_token
     });
 
     if result.is_err() {
         set_last_error_from_result(result);
+        *runtime = Box::into_raw(rt);
         return ERR_CHECK_LE;
     }
 
     let result = result.unwrap();
     if result.is_none() {
+        *runtime = Box::into_raw(rt);
         return ERR_NOT_LOGGED_IN;
     }
 
     *runtime = Box::into_raw(rt);
-    *mx = Arc::into_raw(maxima_arc) as *mut c_void;
     *token_out = CString::new(result.unwrap()).unwrap().into_raw();
+
+    ERR_SUCCESS
+}
+
+/// Retrieve a nucleus auth code with the specified client id. Can return [ERR_NOT_LOGGED_IN]
+#[no_mangle]
+pub unsafe extern "C" fn maxima_auth_exchange(runtime: *mut *mut Runtime, mx: *mut *mut c_void, client_id: *const c_char, code_out: *mut *const c_char) -> usize {
+    let rt = Box::from_raw(*runtime);
+
+    let result = rt.block_on(async {
+        let maxima_arc = Arc::from_raw(*mx as *const Mutex<Maxima>);
+
+        let access_token = {
+            let maxima = maxima_arc.lock().await;
+            let mut auth_storage = maxima.auth_storage().lock().await;
+            auth_storage.access_token().await
+        };
+
+        *mx = Arc::into_raw(maxima_arc) as *mut c_void;
+
+        access_token
+    });
+
+    if result.is_err() {
+        set_last_error_from_result(result);
+        *runtime = Box::into_raw(rt);
+        return ERR_CHECK_LE;
+    }
+
+    let result = result.unwrap();
+    if result.is_none() {
+        *runtime = Box::into_raw(rt);
+        return ERR_NOT_LOGGED_IN;
+    }
+
+    let access_token = result.unwrap();
+
+    let result = rt.block_on(async {
+        let mut auth_context = AuthContext::new()?;
+        auth_context.set_access_token(&access_token);
+        nucleus_auth_exchange(&auth_context, &parse_raw_string(client_id), "code").await
+    });
+
+    if result.is_err() {
+        set_last_error_from_result(result);
+        *runtime = Box::into_raw(rt);
+        return ERR_CHECK_LE;
+    }
+
+    *runtime = Box::into_raw(rt);
+    *code_out = CString::new(result.unwrap()).unwrap().into_raw();
 
     ERR_SUCCESS
 }

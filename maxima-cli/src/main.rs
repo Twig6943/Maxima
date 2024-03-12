@@ -21,7 +21,7 @@ use maxima::{
 use maxima::{
     content::downloader::ZipDownloader,
     core::{
-        auth::{nucleus_connect_token, TokenResponse},
+        auth::{nucleus_token_exchange, TokenResponse},
         clients::JUNO_PC_CLIENT_ID,
         service_layer::{ServiceGetMyFriendsRequestBuilder, SERVICE_REQUEST_GETMYFRIENDS, ServiceFriends},
         LockedMaxima,
@@ -33,7 +33,7 @@ use maxima::{
     core::{
         auth::{
             context::AuthContext,
-            execute_auth_exchange,
+            nucleus_auth_exchange,
             login::{begin_oauth_login_flow, manual_login},
         },
         launch,
@@ -149,7 +149,7 @@ pub async fn login_flow(login_override: Option<String>) -> Result<TokenResponse>
         };
 
         auth_context.set_access_token(&access_token);
-        let code = execute_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
+        let code = nucleus_auth_exchange(&auth_context, JUNO_PC_CLIENT_ID, "code").await?;
         auth_context.set_code(&code);
     } else {
         begin_oauth_login_flow(&mut auth_context).await?
@@ -163,7 +163,7 @@ pub async fn login_flow(login_override: Option<String>) -> Result<TokenResponse>
         info!("Received login...");
     }
 
-    let token_res = nucleus_connect_token(&auth_context).await;
+    let token_res = nucleus_token_exchange(&auth_context).await;
     if token_res.is_err() {
         bail!("Login failed: {}", token_res.err().unwrap().to_string());
     }
@@ -231,7 +231,7 @@ async fn startup() -> Result<()> {
 }
 
 async fn run_interactive(maxima_arc: LockedMaxima) -> Result<()> {
-    let launch_options = vec!["Launch Game", "Install Game", "List Games", "Account Info"];
+    let launch_options = vec!["Launch Game", "Install Game", "List Builds", "List Games", "Account Info"];
     let name = Select::new(
         "Welcome to Maxima! What would you like to do?",
         launch_options,
@@ -241,6 +241,7 @@ async fn run_interactive(maxima_arc: LockedMaxima) -> Result<()> {
     match name {
         "Launch Game" => interactive_start_game(maxima_arc.clone()).await?,
         "Install Game" => interactive_install_game(maxima_arc.clone()).await?,
+        "List Builds" => generate_download_links(maxima_arc.clone()).await?,
         "List Games" => list_games(maxima_arc.clone()).await?,
         "Account Info" => print_account_info(maxima_arc.clone()).await?,
         _ => bail!("Something went wrong."),
@@ -347,6 +348,49 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
     Ok(())
 }
 
+async fn generate_download_links(maxima_arc: LockedMaxima) -> Result<()> {
+    let maxima = maxima_arc.lock().await;
+
+    let owned_games = maxima.owned_games(1).await?;
+    let owned_games = owned_games.owned_game_products().as_ref().unwrap().items();
+    let owned_games_strs = owned_games
+        .iter()
+        .map(|g| g.product().name())
+        .collect::<Vec<String>>();
+
+    let name = Select::new("What game would you like to install?", owned_games_strs).prompt()?;
+    let game = owned_games
+        .iter()
+        .find(|g| g.product().name() == name)
+        .unwrap();
+
+    let content_service = ContentService::new(maxima.auth_storage().clone());
+    let builds = content_service
+        .available_builds(&game.origin_offer_id())
+        .await?;
+    
+    let mut strs = String::new();
+    for build in builds.builds {
+        let url = content_service
+            .download_url(&game.origin_offer_id(), Some(&build.build_id()))
+            .await;
+        if url.is_err() {
+            continue;
+        }
+
+        let url = url.unwrap();
+
+        strs += &build.to_string();
+        strs += ": ";
+        strs += url.url();
+        strs += "\n";
+    }
+
+    std::fs::write("test", strs).unwrap();
+
+    Ok(())
+}
+
 async fn print_account_info(maxima_arc: LockedMaxima) -> Result<()> {
     let mut maxima = maxima_arc.lock().await;
     let user = maxima.local_user().await?;
@@ -366,7 +410,7 @@ async fn create_auth_code(maxima_arc: LockedMaxima, client_id: &str) -> Result<(
     let mut context = AuthContext::new()?;
     context.set_access_token(&maxima.access_token().await?);
 
-    let auth_code = execute_auth_exchange(&context, client_id, "code").await?;
+    let auth_code = nucleus_auth_exchange(&context, client_id, "code").await?;
     info!("Auth Code for {}: {}", client_id, auth_code);
     info!("Code verifier: {}", context.code_verifier());
     Ok(())
