@@ -56,10 +56,11 @@ use self::{
     library::GameLibrary,
     locale::Locale,
     service_layer::{
-        ServiceGameProductType, ServiceGetBasicPlayerRequestBuilder,
-        ServiceGetPreloadedOwnedGamesRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
-        ServiceLayerClient, ServicePlatform, ServicePlayer, ServiceStorefront, ServiceUser,
-        SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
+        ServiceFriends, ServiceGameProductType, ServiceGetBasicPlayerRequestBuilder,
+        ServiceGetMyFriendsRequestBuilder, ServiceGetPreloadedOwnedGamesRequestBuilder,
+        ServiceGetUserPlayerRequest, ServiceImage, ServiceLayerClient, ServicePlatform,
+        ServicePlayer, ServiceStorefront, ServiceUser, SERVICE_REQUEST_GETBASICPLAYER,
+        SERVICE_REQUEST_GETMYFRIENDS, SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
         SERVICE_REQUEST_GETUSERPLAYER,
     },
 };
@@ -172,6 +173,36 @@ impl Maxima {
         self.request_cache
             .insert(cache_key.to_owned(), user.clone());
         Ok(user)
+    }
+
+    pub async fn friends(&self, page: u32) -> Result<Vec<ServicePlayer>> {
+        let cache_key = "friends";
+        if let Some(cached) = self.request_cache.get(cache_key) {
+            return Ok(cached);
+        }
+
+        let friends: ServiceFriends = self
+            .service_layer
+            .request(
+                SERVICE_REQUEST_GETMYFRIENDS,
+                ServiceGetMyFriendsRequestBuilder::default()
+                    .limit(100)
+                    .offset(page)
+                    .is_mutual_friends_enabled(false)
+                    .build()?,
+            )
+            .await?;
+
+        let friends: Vec<ServicePlayer> = friends
+            .friends()
+            .items()
+            .into_iter()
+            .map(|x| x.player().clone())
+            .collect();
+
+        self.request_cache
+            .insert(cache_key.to_owned(), friends.clone());
+        Ok(friends)
     }
 
     pub fn call_event(&mut self, event: MaximaEvent) {

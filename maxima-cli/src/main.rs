@@ -24,8 +24,8 @@ use maxima::{
         auth::{nucleus_token_exchange, TokenResponse},
         clients::JUNO_PC_CLIENT_ID,
         service_layer::{
-            ServiceFriends, ServiceGetBasicPlayerRequestBuilder, ServiceGetMyFriendsRequestBuilder,
-            ServicePlayer, SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETMYFRIENDS,
+            ServiceFriends, ServiceGetBasicPlayerRequestBuilder, ServicePlayer,
+            SERVICE_REQUEST_GETBASICPLAYER,
         },
         LockedMaxima,
     },
@@ -447,20 +447,8 @@ async fn read_license_file(content_id: &str) -> Result<()> {
 async fn list_friends(maxima_arc: LockedMaxima) -> Result<()> {
     let maxima = maxima_arc.lock().await;
 
-    let response: ServiceFriends = maxima
-        .service_layer()
-        .request(
-            SERVICE_REQUEST_GETMYFRIENDS,
-            ServiceGetMyFriendsRequestBuilder::default()
-                .limit(100)
-                .offset(0)
-                .is_mutual_friends_enabled(false)
-                .build()?,
-        )
-        .await?;
-
-    for ele in response.friends().items() {
-        info!("{}", ele.player().display_name());
+    for ele in maxima.friends(0).await? {
+        info!("{}", ele.display_name());
     }
 
     Ok(())
@@ -485,30 +473,14 @@ async fn get_user_by_id(maxima_arc: LockedMaxima, user_id: &str) -> Result<()> {
 
 async fn test_rtm_connection(maxima_arc: LockedMaxima) -> Result<()> {
     let mut maxima = maxima_arc.lock().await;
-
-    let friends: ServiceFriends = maxima
-        .service_layer()
-        .request(
-            SERVICE_REQUEST_GETMYFRIENDS,
-            ServiceGetMyFriendsRequestBuilder::default()
-                .offset(0)
-                .limit(100)
-                .is_mutual_friends_enabled(false)
-                .build()?,
-        )
-        .await?;
+    let friends = maxima.friends(0).await?;
 
     let rtm = maxima.rtm();
     rtm.login().await?;
     rtm.set_presence(BasicPresence::Online, "Test", "Origin.OFR.50.0002148")
         .await?;
 
-    let mut players: Vec<String> = friends
-        .friends()
-        .items()
-        .iter()
-        .map(|f| f.id().to_owned())
-        .collect();
+    let mut players: Vec<String> = friends.iter().map(|f| f.id().to_owned()).collect();
     info!("Subscribed to {} players", players.len());
 
     rtm.subscribe(&players).await?;
@@ -524,12 +496,9 @@ async fn test_rtm_connection(maxima_arc: LockedMaxima) -> Result<()> {
                 info!(
                     "{}/{} is {:?}: In {}",
                     friends
-                        .friends()
-                        .items()
                         .iter()
                         .find(|x| x.id().to_owned() == *entry.0)
                         .unwrap()
-                        .player()
                         .display_name(),
                     entry.0,
                     entry.1.basic(),

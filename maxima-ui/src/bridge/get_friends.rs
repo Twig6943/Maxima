@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result, bail};
 use egui::Context;
 use log::debug;
-use maxima::core::{service_layer::{ServiceFriends, SERVICE_REQUEST_GETMYFRIENDS, ServiceGetMyFriendsRequestBuilder}, LockedMaxima};
+use maxima::core::LockedMaxima;
 use std::sync::mpsc::Sender;
 
 use crate::{
@@ -21,24 +21,16 @@ pub async fn get_friends_request(
         bail!("Ignoring request to load games, not logged in.");
     }
 
-    let response: ServiceFriends = maxima.service_layer().request(
-        SERVICE_REQUEST_GETMYFRIENDS,
-        ServiceGetMyFriendsRequestBuilder::default()
-        .limit(100)
-        .offset(0)
-        .is_mutual_friends_enabled(false)
-        .build()?,
-    ).await?;
-
-    for bitchass in response.friends().items() {
+    let friends = maxima.friends(0).await?;
+    for bitchass in friends {
 
         let friend_info = UIFriend {
-            name: bitchass.player().display_name().to_string(),
-            id: bitchass.player().id().to_string(),
+            name: bitchass.display_name().to_string(),
+            id: bitchass.id().to_string(),
             online: true,
             game: Some("your mom".to_owned()),
             game_presence: None,
-            avatar: UIFriendImageWrapper::Unloaded(bitchass.player().avatar().medium().path().to_string()),
+            avatar: UIFriendImageWrapper::Unloaded(bitchass.avatar().medium().path().to_string()),
         };
 
         let res = MaximaLibResponse::FriendInfoResponse(InteractThreadFriendListResponse {
