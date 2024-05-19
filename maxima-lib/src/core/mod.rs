@@ -60,7 +60,7 @@ use self::{
         ServiceGetBasicPlayerRequestBuilder, ServiceGetMyFriendsRequestBuilder,
         ServiceGetPreloadedOwnedGamesRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
         ServiceImageBuilder, ServiceLayerClient, ServiceOwnershipStatus, ServicePlatform,
-        ServicePlayer, ServicePlayerBuilder, ServicePurchaseStatus, ServiceStorefront, ServiceUser,
+        ServicePlayer, ServicePlayerBuilder, ServiceStorefront, ServiceUser,
         ServiceUserBuilder, ServiceUserGameProduct, SERVICE_REQUEST_GETBASICPLAYER,
         SERVICE_REQUEST_GETMYFRIENDS, SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
         SERVICE_REQUEST_GETUSERPLAYER,
@@ -319,11 +319,15 @@ impl Maxima {
                 if x.status() != &ServiceOwnershipStatus::Active {
                     return false;
                 }
-                
+
                 // Ensure it's the full game
                 if x.product().base_item().game_type().as_ref().unwrap_or(&ServiceGameProductType::ExpansionPack)
                     != &ServiceGameProductType::BaseGame
                 {
+                    return false;
+                }
+
+                if !*x.product().downloadable() {
                     return false;
                 }
 
