@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod cache;
 pub mod clients;
+pub mod cloudsync;
 pub mod concurrency;
 pub mod dip;
 pub mod ecommerce;

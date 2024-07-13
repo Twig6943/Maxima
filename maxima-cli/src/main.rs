@@ -326,7 +326,15 @@ async fn interactive_start_game(maxima_arc: LockedMaxima) -> Result<()> {
     let offer_id = {
         let mut maxima = maxima_arc.lock().await;
 
-        let owned_games = maxima.mut_library().games().await;
+        let mut owned_games = Vec::new();
+        for game in maxima.mut_library().games().await {
+            if !game.base_offer().installed().await {
+                continue;
+            }
+
+            owned_games.push(game);
+        }
+
         let owned_games_strs = owned_games
             .iter()
             .map(|g| g.name())

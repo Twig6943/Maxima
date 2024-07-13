@@ -17,7 +17,7 @@ tokio = { version = "1.28.2", features = [
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.97"
 anyhow = { version = "1.0.71", features = ["backtrace"] }
-reqwest = "0.11.18"
+reqwest = { version = "0.11.18", features = ["stream", "rustls-tls"], default-features = false }
 base64 = "0.21.2"
 url = "2.4.0"
 querystring = "1.1.0"
