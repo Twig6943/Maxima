@@ -242,9 +242,6 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
             },
           };
 
-          // button is 0.6x the height of the pfp
-          // 0.2x gap between everything
-
           let (f_res, f_painter) = ui.allocate_painter(vec2(width, 2.0 + PFP_IMG_SIZE + ((button_height + button_gap) * how_buttons)), egui::Sense::click());
           let mut highlight_rect = f_res.rect.clone();
           highlight_rect.set_height(2.0 + PFP_IMG_SIZE);
@@ -274,6 +271,7 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
               max: pos2(marry_rect.max.x + size.x + ui.spacing().item_spacing.x, marry_rect.max.y)
             };
 
+            // This is a bit unprofessional. i don't care.
             if ui.put(fuck_rect, egui::Button::new("FUCK")).clicked()
             || ui.put(marry_rect, egui::Button::new("MARRY")).clicked()
             || ui.put(kill_rect, egui::Button::new("KILL")).clicked() {
@@ -302,9 +300,6 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
           }
 
           f_painter.rect(outline_rect, Rounding::same(4.0), Color32::TRANSPARENT, Stroke::new(2.0, friend_color));
-
-          // header: 0.225x
-          // subtext: 0.18x
 
           let text_col = if f_res.hovered() || buttons {
             Color32::BLACK
