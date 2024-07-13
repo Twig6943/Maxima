@@ -1,6 +1,6 @@
 use std::{cmp, sync::Arc};
 
-use egui::{text::{LayoutJob, TextWrapping}, vec2, Color32, Id, Margin, Rounding, Sense, Stroke, TextFormat, Ui};
+use egui::{pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Color32, FontId, Id, Margin, Rect, Rounding, Sense, Stroke, TextFormat, Ui};
 use maxima::rtm::{client::BasicPresence};
 
 use crate::{DemoEguiApp, bridge_thread, ui_image::UIImage, widgets::enum_dropdown::enum_dropdown};
@@ -186,109 +186,135 @@ pub fn friends_view(app : &mut DemoEguiApp, ui: &mut Ui) {
         puffin::profile_scope!("friends");
         let mut marge = Margin::same(0.0);
         marge.bottom = 4.5;
-        let scrollbar_width = ui.spacing().scroll.bar_width;
-          for friend in friends {
-            puffin::profile_scope!("friend");
-            let buttons = app.friends_view_bar.friend_sel.eq(&friend.id) && friend_rect_hovered;
-            let how_buttons = context.animate_bool(Id::new("friendlistbuttons_".to_owned()+&friend.id), buttons);
-            let avatar: Option<&Arc<UIImage>> = match &friend.avatar {
-              UIFriendImageWrapper::DoNotLoad => {
-                None
-              },
-              UIFriendImageWrapper::Unloaded(url) => {
-                let _ = app.backend.tx.send(bridge_thread::MaximaLibRequest::GetUserAvatarRequest(friend.id.clone(), url.to_string()));
-                friend.set_avatar_loading_flag();
-                None
-              },
-              UIFriendImageWrapper::Loading => {
-                None
-              },
-              UIFriendImageWrapper::Available(img) => {
-                Some(img)
-              },
-            };
-            let game_hack: String;
-            let friend_status = 
-            match friend.online {
-              
-              BasicPresence::Unknown => "Unknown".to_string(),
-              BasicPresence::Offline => "Offline".to_string(),
-              BasicPresence::Dnd => "Do not Disturb".to_string(),
-              BasicPresence::Away => "Away".to_string(),
-              BasicPresence::Online => {
-                if let Some(game) = &friend.game  {
-                  if app.locale.localization.friends_view.prepend {
-                    if let Some(presence) = &friend.game_presence {
-                      game_hack = format!("{} {}: {}", &game, &app.locale.localization.friends_view.status_playing, &presence);
-                    } else {
-                      game_hack = format!("{} {}", &game, &app.locale.localization.friends_view.status_playing);
-                    }
+
+        let button_height = PFP_IMG_SIZE * 0.6;
+        let button_gap = PFP_IMG_SIZE * 0.2;
+        let width = ui.available_width() - if friend_rect_hovered { ui.style().spacing.scroll.bar_inner_margin + ui.style().spacing.scroll.bar_width } else { 0.0 };
+        for friend in friends {
+          puffin::profile_scope!("friend");
+          let buttons = app.friends_view_bar.friend_sel.eq(&friend.id) && friend_rect_hovered;
+          if buttons { app.force_friends = true; }
+          let how_buttons = context.animate_bool(Id::new("friendlistbuttons_".to_owned()+&friend.id), buttons);
+          let avatar: Option<&Arc<UIImage>> = match &friend.avatar {
+            UIFriendImageWrapper::DoNotLoad => {
+              None
+            },
+            UIFriendImageWrapper::Unloaded(url) => {
+              let _ = app.backend.tx.send(bridge_thread::MaximaLibRequest::GetUserAvatarRequest(friend.id.clone(), url.to_string()));
+              friend.set_avatar_loading_flag();
+              None
+            },
+            UIFriendImageWrapper::Loading => {
+              None
+            },
+            UIFriendImageWrapper::Available(img) => {
+              Some(img)
+            },
+          };
+          let game_hack: String;
+          let (friend_status, friend_color) = 
+          match friend.online {
+            BasicPresence::Unknown => ("Unknown".to_string(), Color32::DARK_RED),
+            BasicPresence::Offline => ("Offline".to_string(), Color32::GRAY),
+            BasicPresence::Dnd => ("Do not Disturb".to_string(), Color32::RED),
+            BasicPresence::Away => ("Away".to_string(), Color32::GOLD),
+            BasicPresence::Online => {
+              (
+              if let Some(game) = &friend.game  {
+                if app.locale.localization.friends_view.prepend {
+                  if let Some(presence) = &friend.game_presence {
+                    game_hack = format!("{} {}: {}", &game, &app.locale.localization.friends_view.status_playing, &presence);
                   } else {
-                    if let Some(presence) = &friend.game_presence {
-                      game_hack = format!("{} {}: {}", &app.locale.localization.friends_view.status_playing, &game, &presence);
-                    } else {
-                      game_hack = format!("{} {}", &app.locale.localization.friends_view.status_playing, &game);
-                    }
+                    game_hack = format!("{} {}", &game, &app.locale.localization.friends_view.status_playing);
                   }
-                  &game_hack
-                  
                 } else {
-                  &app.locale.localization.friends_view.status_online
-                }.to_string()
-              },
+                  if let Some(presence) = &friend.game_presence {
+                    game_hack = format!("{} {}: {}", &app.locale.localization.friends_view.status_playing, &game, &presence);
+                  } else {
+                    game_hack = format!("{} {}", &app.locale.localization.friends_view.status_playing, &game);
+                  }
+                }
+                &game_hack
+                
+              } else {
+                &app.locale.localization.friends_view.status_online
+              }.to_string(), Color32::GREEN)
+            },
+          };
+
+          // button is 0.6x the height of the pfp
+          // 0.2x gap between everything
+
+          let (f_res, f_painter) = ui.allocate_painter(vec2(width, 2.0 + PFP_IMG_SIZE + ((button_height + button_gap) * how_buttons)), egui::Sense::click());
+          let mut highlight_rect = f_res.rect.clone();
+          highlight_rect.set_height(2.0 + PFP_IMG_SIZE);
+          if f_res.clicked() {
+            if buttons {
+              app.friends_view_bar.friend_sel = String::new();
+            } else {
+              app.friends_view_bar.friend_sel = friend.id.clone();
+            }
+          }
+
+          if how_buttons > 0.0 {
+            let size = vec2((width - (ui.style().spacing.item_spacing.x * 2.0)) / 3.0, PFP_IMG_SIZE * 0.6);
+
+            let fuck_rect = Rect {
+              min: pos2(f_res.rect.min.x, f_res.rect.max.y - size.y),
+              max: pos2(f_res.rect.min.x + size.x, f_res.rect.max.y)
             };
 
+            let marry_rect = Rect {
+              min: pos2(fuck_rect.max.x + ui.spacing().item_spacing.x, fuck_rect.min.y),
+              max: pos2(fuck_rect.max.x + size.x + ui.spacing().item_spacing.x, fuck_rect.max.y)
+            };
 
-            //TODO: rewrite with custom painting
-             ui.vertical(|friendo| {
-              friendo.spacing_mut().item_spacing = vec2(0.0,0.0);
-              let TEMP = friendo.available_rect_before_wrap().clone();
-              /*
-              let sensor = friendo.allocate_rect(friendo.available_rect_before_wrap(), Sense::click());
-              let how_hover = context.animate_bool(Id::new("friendlistrect_".to_owned()+&friend.id), sensor.hovered() || buttons);
-              let rect_bg_col = Color32::from_white_alpha((how_hover*u8::MAX as f32) as u8);
-              let text_col = Color32::from_gray(((1.0-how_hover)*u8::MAX as f32) as u8);
-              friendo.allocate_space(-sensor.rect.size().max(vec2(0.0, 0.0)));
-              friendo.painter().rect_filled(sensor.rect, Rounding::same(4.0), rect_bg_col);
-              */
-              friendo.horizontal(|friendo| {
-                friendo.allocate_space(vec2(2.0,0.0));
-                friendo.vertical(|friendo| {
-                  friendo.allocate_space(vec2(0.0,2.0));
-                  if let Some(pfp) = avatar {
-                    friendo.image((pfp.renderable, vec2(PFP_IMG_SIZE,PFP_IMG_SIZE)));
-                  } else {
-                    friendo.image((app.user_pfp_renderable, vec2(PFP_IMG_SIZE,PFP_IMG_SIZE)));
-                  }
-                  let mut outline_rect = TEMP.clone();
-                  outline_rect.min += vec2(1.0,1.0);
-                  outline_rect.set_height(PFP_IMG_SIZE + 2.0);
-                  outline_rect.set_width(PFP_IMG_SIZE + 2.0);
-                  friendo.painter().rect_stroke(outline_rect, Rounding::same(4.0), Stroke::new(2.0, 
-                    match friend.online {
-                        BasicPresence::Unknown => Color32::DARK_RED,
-                        BasicPresence::Offline => Color32::GRAY,
-                        BasicPresence::Dnd => Color32::RED,
-                        BasicPresence::Away => Color32::GOLD,
-                        BasicPresence::Online => Color32::GREEN,
-                    }));
-                });
-                /*
-                friendo.allocate_space(vec2(6.0 + (30.0 - (hovering_friends * 30.0)),0.0));
-                friendo.vertical(|muchotexto| {
-                  muchotexto.allocate_space(vec2(0.0,2.0));
-                  let friend_name = egui::Label::new(egui::RichText::new(&friend.name).size(15.0).color(text_col));
-                  muchotexto.add(friend_name);
-                  muchotexto.allocate_space(vec2(0.0,3.0));
-                  muchotexto.label(egui::RichText::new(friend_status).color(text_col).size(10.0));
-                  });
-                */
-                  
-              });
+            let kill_rect = Rect {
+              min: pos2(marry_rect.max.x + ui.spacing().item_spacing.x, marry_rect.min.y),
+              max: pos2(marry_rect.max.x + size.x + ui.spacing().item_spacing.x, marry_rect.max.y)
+            };
 
-
-            });
+            if ui.put(fuck_rect, egui::Button::new("FUCK")).clicked()
+            || ui.put(marry_rect, egui::Button::new("MARRY")).clicked()
+            || ui.put(kill_rect, egui::Button::new("KILL")).clicked() {
+              app.friends_view_bar.friend_sel = String::new();
+            }
           }
+
+          if f_res.hovered() || buttons {
+            f_painter.rect_filled(highlight_rect, Rounding::same(4.0), Color32::WHITE);
+          }
+
+          let outline_rect = Rect {
+            min: f_res.rect.min + vec2(1.0, 1.0),
+            max: f_res.rect.min + vec2(PFP_IMG_SIZE + 1.0, PFP_IMG_SIZE + 1.0)
+          };
+
+          let pfp_rect = Rect {
+            min: outline_rect.min + vec2(1.0, 1.0),
+            max: outline_rect.max - vec2(1.0, 1.0)
+          };
+
+          if let Some(pfp) = avatar {
+            f_painter.image(pfp.renderable, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+          } else {
+            f_painter.image(app.user_pfp_renderable, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+          }
+
+          f_painter.rect(outline_rect, Rounding::same(4.0), Color32::TRANSPARENT, Stroke::new(2.0, friend_color));
+
+          // header: 0.225x
+          // subtext: 0.18x
+
+          let text_col = if f_res.hovered() || buttons {
+            Color32::BLACK
+          } else {
+            Color32::WHITE
+          };
+
+          f_painter.text(pfp_rect.center() + vec2(PFP_IMG_SIZE/1.5,  2.0), Align2::LEFT_BOTTOM, &friend.name, FontId::proportional(15.0), text_col);
+          f_painter.text(pfp_rect.center() + vec2(PFP_IMG_SIZE/1.5,  2.0), Align2::LEFT_TOP, friend_status, FontId::proportional(10.0), text_col);
+        }
       });
     });
   });
