@@ -663,7 +663,7 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
             "{:<width$} - {:<width2$} - Installed: {}",
             title.base_offer().slug(),
             title.name(),
-            title.base_offer().installed(),
+            title.base_offer().installed().await,
             width = 35,
             width2 = 35
         );

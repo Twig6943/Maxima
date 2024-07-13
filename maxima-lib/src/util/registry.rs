@@ -132,18 +132,18 @@ fn read_reg_key(path: &str) -> Option<String> {
 }
 
 #[cfg(unix)]
-fn read_reg_key(path: &str) -> Option<String> {
+async fn read_reg_key(path: &str) -> Option<String> {
     use crate::unix::wine::get_mx_wine_registry_value;
-    get_mx_wine_registry_value(path)
+    get_mx_wine_registry_value(path).await
 }
 
-pub fn parse_registry_path(key: &str) -> PathBuf {
+pub async fn parse_registry_path(key: &str) -> PathBuf {
     let mut parts = key
         .split(|c| c == '[' || c == ']')
         .filter(|s| !s.is_empty());
 
     if let (Some(first), Some(second)) = (parts.next(), parts.next()) {
-        let path = read_reg_key(first);
+        let path = read_reg_key(first).await;
         if path.is_none() {
             return PathBuf::from(key.to_owned());
         }
@@ -158,13 +158,13 @@ pub fn parse_registry_path(key: &str) -> PathBuf {
     PathBuf::from(key.to_owned())
 }
 
-pub fn parse_partial_registry_path(key: &str) -> PathBuf {
+pub async fn parse_partial_registry_path(key: &str) -> PathBuf {
     let mut parts = key
         .split(|c| c == '[' || c == ']')
         .filter(|s| !s.is_empty());
 
     if let (Some(first), Some(_second)) = (parts.next(), parts.next()) {
-        let path = read_reg_key(first);
+        let path = read_reg_key(first).await;
         if path.is_none() {
             return PathBuf::from(key.to_owned());
         }

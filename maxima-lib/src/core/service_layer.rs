@@ -568,14 +568,15 @@ service_layer_type!(LegacyOffer, {
     content_id: String,
     primary_master_title_id: String,
     #[serde(rename = "gameLauncherURL")]
-    game_launcher_url: String,
+    game_launcher_url: Option<String>,
     #[serde(rename = "gameLauncherURLClientID")]
-    game_launcher_url_client_id: String,
-    execute_path_override: String,
-    installation_directory: String,
-    install_check_override: String,
-    monitor_play: bool,
+    game_launcher_url_client_id: Option<String>,
+    execute_path_override: Option<String>,
+    installation_directory: Option<String>,
+    install_check_override: Option<String>,
+    monitor_play: Option<bool>,
     display_name: String,
-    dip_manifest_relative_path: String,
-    cloud_save_configuration_override: String,
+    display_type: String,
+    dip_manifest_relative_path: Option<String>,
+    cloud_save_configuration_override: Option<String>,
 });

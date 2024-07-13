@@ -1,8 +1,8 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
     ffi::OsStr,
-    fs::{self, create_dir_all, remove_dir_all, File},
-    io::{BufRead, BufReader, Read},
+    fs::{File, self, create_dir_all, remove_dir_all},
+    io::{BufRead, Read},
     path::PathBuf,
     process::{Command, ExitStatus, Stdio},
 };
@@ -14,6 +14,7 @@ use log::{info, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tar::Archive;
+use tokio::{io::{AsyncBufReadExt, BufReader}, sync::Mutex};
 use xz2::read::XzDecoder;
 
 use crate::util::{
@@ -447,14 +448,24 @@ pub fn setup_wine_registry() -> Result<()> {
     Ok(())
 }
 
-fn parse_wine_registry(file_path: &str) -> HashMap<String, String> {
-    let file = File::open(file_path).expect("Could not open file");
+pub type WineRegistry = HashMap<String, String>;
+
+lazy_static!{
+    static ref MX_WINE_REGISTRY: Mutex<WineRegistry> = Mutex::new(WineRegistry::new());
+}
+
+async fn parse_wine_registry(file_path: &str) -> WineRegistry {
+    let mut registry_map = MX_WINE_REGISTRY.lock().await;
+    if !registry_map.is_empty() {
+        return registry_map.clone();
+    }
+
+    let file = tokio::fs::File::open(file_path).await.expect("Could not open file");
     let reader = BufReader::new(file);
-    let mut registry_map = HashMap::new();
     let mut current_section = String::new();
 
-    for line in reader.lines() {
-        let line = line.expect("Could not read line");
+    let mut lines = reader.lines();
+    while let Some(line) = lines.next_line().await.expect("Failed to read file") {
         let trimmed_line = line.trim();
 
         if trimmed_line.starts_with('[') && trimmed_line.contains(']') {
@@ -472,16 +483,20 @@ fn parse_wine_registry(file_path: &str) -> HashMap<String, String> {
         }
     }
 
-    registry_map
+    registry_map.clone()
 }
 
-pub fn parse_mx_wine_registry() -> HashMap<String, String> {
+pub async fn parse_mx_wine_registry() -> WineRegistry {
     let path = wine_prefix_dir().unwrap().join("system.reg");
     if !path.exists() {
         return HashMap::new();
     }
 
-    parse_wine_registry(path.to_str().unwrap())
+    parse_wine_registry(path.to_str().unwrap()).await
+}
+
+pub async fn invalidate_mx_wine_registry() {
+    MX_WINE_REGISTRY.lock().await.clear();
 }
 
 fn normalize_key(key: &str) -> String {
@@ -493,8 +508,8 @@ fn normalize_key(key: &str) -> String {
     }
 }
 
-pub fn get_mx_wine_registry_value(query_key: &str) -> Option<String> {
-    let registry_map = parse_mx_wine_registry();
+pub async fn get_mx_wine_registry_value(query_key: &str) -> Option<String> {
+    let registry_map = parse_mx_wine_registry().await;
     let normalized_query_key = normalize_key(query_key);
 
     let value = if let Some(value) = registry_map.get(&normalized_query_key) {

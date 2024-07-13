@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use derive_getters::Getters;
 use serde::Deserialize;
 
-use crate::unix::wine::run_wine_command;
+use crate::unix::wine::{invalidate_mx_wine_registry, run_wine_command};
 
 pub const DIP_RELATIVE_PATH: &str = "__Installer/installerdata.xml";
 
@@ -129,10 +129,10 @@ impl DiPManifest {
             args.push(PathBuf::from(arg));
         }
 
-        log::info!("Bruh {:?}", args);
-
         let path = install_path.join(&self.touchup.path());
         run_wine_command("wine", path, Some(args), Some(PathBuf::from("/home/battledash/games/battlefront/__Installer")), true)?;
+
+        invalidate_mx_wine_registry().await;
         Ok(())
     }
 }

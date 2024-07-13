@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{bail, Result};
 use derive_getters::Getters;
@@ -26,23 +29,16 @@ pub struct OwnedOffer {
     offer: ServiceLegacyOffer,
 }
 
-fn find_parent_dir(file_path: &Path, dir_name: &str) -> Option<PathBuf> {
-    for ancestor in file_path.ancestors() {
-        if ancestor.file_name().and_then(|name| name.to_str()) == Some(dir_name) {
-            return Some(ancestor.to_path_buf().canonicalize().unwrap());
-        }
-    }
-    None
-}
-
 impl OwnedOffer {
-    pub fn installed(&self) -> bool {
-        let path = parse_registry_path(&self.offer.install_check_override());
+    pub async fn installed(&self) -> bool {
+        let path =
+            parse_registry_path(&self.offer.install_check_override().as_ref().unwrap()).await;
         path.exists()
     }
 
-    pub fn install_check_path(&self) -> String {
-        parse_registry_path(&self.offer.install_check_override())
+    pub async fn install_check_path(&self) -> String {
+        parse_registry_path(&self.offer.install_check_override().as_ref().unwrap())
+            .await
             .to_str()
             .unwrap()
             .to_owned()
@@ -56,8 +52,15 @@ impl OwnedOffer {
 
         let path = if let Some(path) = manifest.unwrap().execute_path(trial) {
             path
-        } else if !self.offer.execute_path_override().is_empty() {
-            parse_registry_path(&self.offer.execute_path_override())
+        } else if !self
+            .offer
+            .execute_path_override()
+            .as_ref()
+            .unwrap()
+            .is_empty()
+        {
+            parse_registry_path(&self.offer.execute_path_override().as_ref().unwrap())
+                .await
                 .to_str()
                 .unwrap()
                 .to_owned()
@@ -65,21 +68,26 @@ impl OwnedOffer {
             bail!("No execute path found");
         };
 
-        Ok(parse_registry_path(&path))
+        Ok(parse_registry_path(&path).await)
     }
 
     pub async fn local_manifest(&self) -> Option<DiPManifest> {
         let path = if self
             .offer
             .install_check_override()
+            .as_ref()
+            .unwrap()
             .contains("installerdata.xml")
         {
-            PathBuf::from(self.install_check_path())
+            PathBuf::from(self.install_check_path().await)
         } else {
-            let path = PathBuf::from(parse_partial_registry_path(&self.offer.install_check_override())
-                .to_str()
-                .unwrap()
-                .to_owned());
+            let path = PathBuf::from(
+                parse_partial_registry_path(&self.offer.install_check_override().as_ref().unwrap())
+                    .await
+                    .to_str()
+                    .unwrap()
+                    .to_owned(),
+            );
 
             path.join(DIP_RELATIVE_PATH)
         };
@@ -103,13 +111,23 @@ fn group_offers(products: Vec<OwnedOffer>) -> Vec<OwnedTitle> {
     let mut product_map = HashMap::new();
 
     for product in products {
-        if let Some(base_slug) = &product.product.product().base_item().base_game_slug() {
+        let slug = product
+            .product
+            .product()
+            .base_item()
+            .base_game_slug()
+            .clone();
+        let full_game = product.offer.display_type() == "FullGame";
+
+        if slug.is_none() && full_game {
+            base_products.insert(product.slug.clone(), product.clone());
+        } else if slug.is_none() && !full_game {
+            // Do nothing with this offer I suppose? It doesn't appear very useful.
+        } else {
             product_map
-                .entry(base_slug.clone())
+                .entry(slug.clone().unwrap())
                 .or_insert_with(Vec::new)
                 .push(product);
-        } else {
-            base_products.insert(product.slug.clone(), product);
         }
     }
 
