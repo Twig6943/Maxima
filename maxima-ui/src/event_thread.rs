@@ -28,18 +28,14 @@ pub enum MaximaEventRequest {
 }
 
 pub struct EventThread {
-    pub rx: Receiver<MaximaEventResponse>,
-    pub tx: Sender<MaximaEventRequest>,
 }
 
 impl EventThread {
-    pub fn new(ctx: &Context) -> Self {
-        let (tx0, rx1) = std::sync::mpsc::channel();
-        let (tx1, rx0) = std::sync::mpsc::channel();
+    pub fn new(ctx: &Context, maxima: LockedMaxima,  rtm_cmd_listener: Receiver<MaximaEventRequest>, rtm_responder: Sender<MaximaEventResponse>) -> Self {
         let context = ctx.clone();
 
         tokio::task::spawn(async move {
-            let result = EventThread::run(rx1, tx1, &context).await;
+            let result = EventThread::run(rtm_cmd_listener, rtm_responder, &context, maxima).await;
             if result.is_err() {
                 panic!("Event thread failed! {}", result.err().unwrap());
             } else {
@@ -47,20 +43,15 @@ impl EventThread {
             }
         });
 
-        Self { rx: rx0, tx: tx0 }
+        Self {}
     }
 
     async fn run(
-        rx: Receiver<MaximaEventRequest>,
-        tx: Sender<MaximaEventResponse>,
+        rtm_cmd_listener: Receiver<MaximaEventRequest>,
+        rtm_responder: Sender<MaximaEventResponse>,
         ctx: &Context,
+        maxima_arc: LockedMaxima,
     ) -> Result<()> {
-        let maxima_arc: LockedMaxima = Maxima::new_with_options(
-            MaximaOptionsBuilder::default()
-                .dummy_local_user(false)
-                .load_auth_storage(true)
-                .build()?,
-        ).await?;
 
         let mut maxima = maxima_arc.lock().await;
 
@@ -99,7 +90,7 @@ impl EventThread {
             {
                 let store = maxima.rtm().presence_store().lock().await;
                 for entry in store.iter() {
-                    tx.send(MaximaEventResponse::FriendStatusResponse(
+                    rtm_responder.send(MaximaEventResponse::FriendStatusResponse(
                         EventThreadFriendStatusResponse {
                             id: entry.0.to_string(),
                             presence: entry.1,
@@ -112,14 +103,16 @@ impl EventThread {
 
             drop(maxima);
 
-            let request = rx.try_recv();
+            let request = rtm_cmd_listener.try_recv();
             if request.is_err() {
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                 continue;
             }
 
             match request? {
-                MaximaEventRequest::SubscribeToFriendPresence => {}
+                MaximaEventRequest::SubscribeToFriendPresence => {
+
+                }
                 MaximaEventRequest::ShutdownRequest => break 'outer Ok(()),
             }
 

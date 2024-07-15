@@ -18,10 +18,7 @@ use crate::{
         game_images::game_images_request, get_friends::get_friends_request,
         get_games::get_games_request, get_user_avatar::get_user_avatar_request,
         login_creds::login_creds, login_oauth::login_oauth, start_game::start_game_request,
-    },
-    ui_image::UIImage,
-    views::friends_view::UIFriend,
-    GameDetails, GameInfo, GameUIImages,
+    }, event_thread::{EventThread, MaximaEventRequest, MaximaEventResponse}, ui_image::UIImage, views::friends_view::UIFriend, GameDetails, GameInfo, GameUIImages
 };
 
 pub struct InteractThreadLoginResponse {
@@ -81,20 +78,26 @@ pub enum MaximaLibResponse {
 }
 
 pub struct BridgeThread {
-    pub rx: Receiver<MaximaLibResponse>,
-    pub tx: Sender<MaximaLibRequest>,
+    pub backend_listener: Receiver<MaximaLibResponse>,
+    pub backend_commander: Sender<MaximaLibRequest>,
+
+    pub rtm_listener: Receiver<MaximaEventResponse>,
+    pub rtm_commander: Sender<MaximaEventRequest>, // currently unused except for shutdown
 }
 
 impl BridgeThread {
     pub fn new(ctx: &Context) -> Self {
-        let (tx0, rx1) = std::sync::mpsc::channel();
-        let (tx1, rx0) = std::sync::mpsc::channel();
+        let (backend_commander, backend_cmd_listener) = std::sync::mpsc::channel();
+        let (backend_responder, backend_listener) = std::sync::mpsc::channel();
+
+        let (rtm_commander, rtm_cmd_listener) = std::sync::mpsc::channel();
+        let (rtm_responder, rtm_listener) = std::sync::mpsc::channel();
         let context = ctx.clone();
 
         tokio::task::spawn(async move {
-            let die_fallback_transmittter = tx1.clone();
+            let die_fallback_transmittter = backend_responder.clone();
             //panic::set_hook(Box::new( |_| {}));
-            let result = BridgeThread::run(rx1, tx1, &context).await;
+            let result = BridgeThread::run(backend_cmd_listener, backend_responder, rtm_cmd_listener, rtm_responder, &context).await;
             if result.is_err() {
                 die_fallback_transmittter
                     .send(MaximaLibResponse::InteractionThreadDiedResponse)
@@ -105,12 +108,14 @@ impl BridgeThread {
             }
         });
 
-        Self { rx: rx0, tx: tx0 }
+        Self { backend_listener, backend_commander, rtm_listener, rtm_commander }
     }
 
     async fn run(
-        rx1: Receiver<MaximaLibRequest>,
-        tx1: Sender<MaximaLibResponse>,
+        backend_cmd_listener: Receiver<MaximaLibRequest>,
+        backend_responder: Sender<MaximaLibResponse>,
+        rtm_cmd_listener: Receiver<MaximaEventRequest>,
+        rtm_responder: Sender<MaximaEventResponse>,
         ctx: &Context,
     ) -> Result<()> {
         let maxima_arc: LockedMaxima = Maxima::new_with_options(
@@ -139,12 +144,14 @@ impl BridgeThread {
                     description: user.player().as_ref().unwrap().display_name().to_owned(),
                 });
 
-                tx1.send(lmessage)?;
+                backend_responder.send(lmessage)?;
                 ctx.request_repaint();
             } else {
-                tx1.send(MaximaLibResponse::LoginCacheEmpty)?;
+                backend_responder.send(MaximaLibResponse::LoginCacheEmpty)?;
             }
         }
+
+        let ev_thread = EventThread::new(&ctx.clone(), maxima_arc.clone(), rtm_cmd_listener, rtm_responder);
 
         let mut future  = SystemTime::now();
         future = future.checked_add(Duration::from_millis(100)).unwrap();
@@ -163,61 +170,61 @@ impl BridgeThread {
                     if let Some(offer) = ctx.offer() {
                         if playing_cache.is_none() {
                             playing_cache = Some(offer.slug().clone());
-                            tx1.send(MaximaLibResponse::ActiveGameChanged(Some(offer.slug().clone()))).unwrap();
+                            backend_responder.send(MaximaLibResponse::ActiveGameChanged(Some(offer.slug().clone()))).unwrap();
                         }
                     }
                 } else {
                     if playing_cache.is_some() {
                         playing_cache = None;
-                        tx1.send(MaximaLibResponse::ActiveGameChanged(None)).unwrap();
+                        backend_responder.send(MaximaLibResponse::ActiveGameChanged(None)).unwrap();
                     };
                 }
             }
-            let request = rx1.try_recv();
+            let request = backend_cmd_listener.try_recv();
             if request.is_err() {
                 continue;
             }
 
             match request? {
                 MaximaLibRequest::LoginRequestOauth => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move { login_oauth(maxima, channel, &context).await }.await?;
                 }
                 MaximaLibRequest::LoginRequestUserPass(user, pass) => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move { login_creds(maxima, channel, &context, user, pass).await }.await?;
                 }
                 MaximaLibRequest::GetGamesRequest => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move { get_games_request(maxima, channel, &context).await }.await?;
                 }
                 MaximaLibRequest::GetFriendsRequest => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move { get_friends_request(maxima, channel, &context).await }.await?;
                 }
                 MaximaLibRequest::GetGameImagesRequest(slug) => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move { game_images_request(maxima, slug, channel, &context).await }
                         .await?;
                 }
                 MaximaLibRequest::GetUserAvatarRequest(id, url) => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let context = ctx.clone();
                     async move { get_user_avatar_request(channel, id, url, &context).await }
                         .await?;
                 }
                 MaximaLibRequest::GetGameDetailsRequest(slug) => {
-                    let channel = tx1.clone();
+                    let channel = backend_responder.clone();
                     let maxima = maxima_arc.clone();
                     let context = ctx.clone();
                     async move {

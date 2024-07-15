@@ -8,7 +8,7 @@ use crate::{
 pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
     puffin::profile_function!();
 
-    while let Ok(result) = app.backend.rx.try_recv() {
+    while let Ok(result) = app.backend.backend_listener.try_recv() {
         match result {
             bridge_thread::MaximaLibResponse::LoginResponse(res) => {
                 info!("Got something");
@@ -23,16 +23,12 @@ pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
                 app.user_name = res.description.clone();
                 app.login_cache_waiting = false;
                 app.backend
-                    .tx
+                    .backend_commander
                     .send(bridge_thread::MaximaLibRequest::GetGamesRequest)
                     .unwrap();
                 app.backend
-                    .tx
+                    .backend_commander
                     .send(bridge_thread::MaximaLibRequest::GetFriendsRequest)
-                    .unwrap();
-                app.events
-                    .tx
-                    .send(event_thread::MaximaEventRequest::SubscribeToFriendPresence)
                     .unwrap();
             }
             bridge_thread::MaximaLibResponse::LoginCacheEmpty => {

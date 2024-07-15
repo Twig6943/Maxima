@@ -203,7 +203,7 @@ pub fn friends_view(app : &mut MaximaEguiApp, ui: &mut Ui) {
               None
             },
             UIFriendImageWrapper::Unloaded(url) => {
-              let _ = app.backend.tx.send(bridge_thread::MaximaLibRequest::GetUserAvatarRequest(friend.id.clone(), url.to_string()));
+              let _ = app.backend.backend_commander.send(bridge_thread::MaximaLibRequest::GetUserAvatarRequest(friend.id.clone(), url.to_string()));
               friend.set_avatar_loading_flag();
               None
             },

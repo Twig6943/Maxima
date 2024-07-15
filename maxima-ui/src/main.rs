@@ -6,6 +6,7 @@ use egui::style::{ScrollStyle, Spacing};
 use egui::Style;
 use log::{error, info, warn};
 use maxima::core::library::OwnedOffer;
+use views::downloads_view::{downloads_view, QueuedDownload};
 use views::undefinied_view::coming_soon_view;
 use std::collections::HashMap;
 use std::default::Default;
@@ -280,9 +281,7 @@ pub struct MaximaEguiApp {
     /// If a core thread has crashed and made the UI unstable
     critical_bg_thread_crashed: bool, 
     /// pepega
-    backend: BridgeThread, 
-    /// pepega
-    events: EventThread, 
+    backend: BridgeThread,
     /// temp book to track login status
     logged_in: bool, 
     /// waiting for the bridge to check auth storage
@@ -302,7 +301,9 @@ pub struct MaximaEguiApp {
     /// Hardcodes game exe paths to stuff on my computer
     hardcode_game_paths: bool,
     /// Slug of the game currently running, may not be fully accurate but it's good enough to let the user know the button was clicked
-    playing_game: Option<String>
+    playing_game: Option<String>,
+    /// Queue of game installs
+    install_queue: Vec<QueuedDownload>,
 }
 
 const F9B233: Color32 = Color32::from_rgb(249, 178, 51);
@@ -432,7 +433,6 @@ impl MaximaEguiApp {
                 .expect("Could not load translation file"),
             critical_bg_thread_crashed: false,
             backend: BridgeThread::new(&cc.egui_ctx), //please don't fucking break
-            events: EventThread::new(&cc.egui_ctx),
             logged_in: args.no_login, // largely deprecated but i'm going to keep it here
             login_cache_waiting: true,
             in_progress_login: false,
@@ -443,6 +443,7 @@ impl MaximaEguiApp {
             credential_login_in_progress: false,
             hardcode_game_paths: !args.remove_hardcoded_game_paths,
             playing_game: None,
+            install_queue: Vec::new(),
         }
     }
 }
@@ -633,7 +634,7 @@ impl eframe::App for MaximaEguiApp {
                                         .clicked()
                                     {
                                         self.backend
-                                            .tx
+                                            .backend_commander
                                             .send(
                                                 bridge_thread::MaximaLibRequest::LoginRequestUserPass(
                                                     self.in_progress_username.clone(),
@@ -678,7 +679,7 @@ impl eframe::App for MaximaEguiApp {
                                     self.in_progress_login_type = InProgressLoginType::Oauth;
                                     self.in_progress_login = true;
                                     self.backend
-                                        .tx
+                                        .backend_commander
                                         .send(bridge_thread::MaximaLibRequest::LoginRequestOauth)
                                         .unwrap();
                                 }
@@ -879,6 +880,7 @@ impl eframe::App for MaximaEguiApp {
                                         PageType::Settings => settings_view(self, bigmain),
                                         PageType::Debug => debug_view(self, bigmain),
                                         PageType::Store => coming_soon_view(self, bigmain),
+                                        PageType::Downloads => downloads_view(self, bigmain),
                                         _ => undefined_view(self, bigmain),
                                     }
                                 });
@@ -941,7 +943,7 @@ impl eframe::App for MaximaEguiApp {
 
     fn on_exit(&mut self, _gl: Option<&glow::Context>) {
         self.backend
-            .tx
+            .backend_commander
             .send(bridge_thread::MaximaLibRequest::ShutdownRequest)
             .unwrap();
     }

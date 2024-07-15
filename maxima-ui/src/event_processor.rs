@@ -3,7 +3,7 @@ use crate::{event_thread, MaximaEguiApp};
 pub fn frontend_processor(app: &mut MaximaEguiApp, ctx: &egui::Context) {
     puffin::profile_function!();
 
-    while let Ok(result) = app.events.rx.try_recv() {
+    while let Ok(result) = app.backend.rtm_listener.try_recv() {
         match result {
             event_thread::MaximaEventResponse::FriendStatusResponse(res) => {
                 for friend in &mut app.friends {

@@ -1,7 +1,7 @@
 use egui::{pos2, vec2, Color32, Margin, Mesh, Pos2, Rect, RichText, Rounding, ScrollArea, Shape, Stroke, Ui};
 use egui_extras::Size;
 use log::{debug, info};
-use crate::{bridge_thread, widgets::enum_dropdown::enum_dropdown, GameDetails, GameDetailsWrapper, GameInfo, GameUIImages, GameUIImagesWrapper, MaximaEguiApp, PopupModal};
+use crate::{bridge_thread, views::downloads_view::QueuedDownload, widgets::enum_dropdown::enum_dropdown, GameDetails, GameDetailsWrapper, GameInfo, GameUIImages, GameUIImagesWrapper, MaximaEguiApp, PopupModal};
 
 use strum_macros::EnumIter;
 
@@ -56,7 +56,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
   let game_images: Option<&GameUIImages> = match &game.images {
     GameUIImagesWrapper::Unloaded => {
       debug!("Loading images for {:?}", game.name);
-      app.backend.tx.send(bridge_thread::MaximaLibRequest::GetGameImagesRequest(game.slug.clone())).unwrap();
+      app.backend.backend_commander.send(bridge_thread::MaximaLibRequest::GetGameImagesRequest(game.slug.clone())).unwrap();
       game.images = GameUIImagesWrapper::Loading;
       None
     },
@@ -70,7 +70,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
   let game_details: Option<&GameDetails> = match &game.details {
     GameDetailsWrapper::Unloaded => {
       debug!("Loading details for {:?}", game.name);
-      app.backend.tx.send(bridge_thread::MaximaLibRequest::GetGameDetailsRequest(game.slug.clone())).unwrap();
+      app.backend.backend_commander.send(bridge_thread::MaximaLibRequest::GetGameDetailsRequest(game.slug.clone())).unwrap();
       game.details = GameDetailsWrapper::Loading;
       None
     },
@@ -235,7 +235,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
                         .min_size(vec2(50.0,40.0))
                       ).clicked() {
                         app.playing_game = Some(game.slug.clone());
-                        let _ = app.backend.tx.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.offer.clone(), app.hardcode_game_paths));
+                        let _ = app.backend.backend_commander.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.offer.clone(), app.hardcode_game_paths));
                       }
                     } else {
                       let install_str = { "  ".to_string() + &app.locale.localization.games_view.main.install.to_uppercase() + "  " };
@@ -245,6 +245,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
                         .rounding(Rounding::same(2.0))
                         .min_size(vec2(50.0,40.0))
                       ).clicked() {
+                        app.install_queue.push(QueuedDownload { slug: game.slug.clone(), downloaded_bytes: 0, total_bytes: 0 })
                         //TODO
                       }
                     }
@@ -367,7 +368,7 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
 fn game_list_button_context_menu(app : &MaximaEguiApp, game : &GameInfo, ui : &mut Ui) {
   ui.add_enabled_ui(app.playing_game.is_none(), |play_button| {
     if play_button.button("▶ Play").clicked() {
-      let _ = app.backend.tx.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.offer.clone(), app.hardcode_game_paths));
+      let _ = app.backend.backend_commander.send(crate::bridge_thread::MaximaLibRequest::StartGameRequest(game.offer.clone(), app.hardcode_game_paths));
       play_button.close_menu();
     }
   });
