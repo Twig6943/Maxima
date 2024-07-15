@@ -570,7 +570,7 @@ pub extern "C" fn maxima_find_owned_offer(
         let result = rt.block_on(async {
             let mut maxima = maxima_arc.lock().await;
             let game_slug = parse_raw_string(c_game_slug);
-            let game = maxima.mut_library().game_by_base_slug(&game_slug).await?;
+            let game = maxima.mut_library().game_by_base_slug(&game_slug).await.unwrap();
             return Ok(game.offer_id().to_owned());
         });
 
