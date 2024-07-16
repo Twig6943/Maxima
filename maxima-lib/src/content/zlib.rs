@@ -5,10 +5,13 @@ use std::{
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use flate2::raw::{gz_headerp, mz_stream, z_streamp};
+use log::error;
 
 pub const Z_ENOUGH_LENS: usize = 852;
 pub const Z_ENOUGH_DISTS: usize = 592;
 pub const Z_ENOUGH: usize = Z_ENOUGH_LENS + Z_ENOUGH_DISTS;
+
+const Z_MAGIC: u32 = u32::from_be_bytes(*b"ZSTA");
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -71,6 +74,8 @@ pub struct ZInflateState {
 }
 
 pub(crate) fn write_zlib_state(buf: &mut BytesMut, stream: &mut mz_stream) {
+    buf.put_u32(Z_MAGIC);
+
     buf.put_u64(stream.total_in);
     buf.put_u64(stream.total_out);
     buf.put_i32(stream.data_type);
@@ -101,12 +106,23 @@ pub(crate) fn write_zlib_state(buf: &mut BytesMut, stream: &mut mz_stream) {
         }
     }
 
-    let lencode_index = unsafe { state_ref.lencode.offset_from(state_ref.codes.as_ptr()) };
-    let distcode_index = unsafe { state_ref.distcode.offset_from(state_ref.codes.as_ptr()) };
-    let next_index = unsafe { state_ref.next.offset_from(state_ref.codes.as_ptr()) };
+    let mut lencode_index = unsafe { state_ref.lencode.offset_from(state_ref.codes.as_ptr()) };
+    let mut distcode_index = unsafe { state_ref.distcode.offset_from(state_ref.codes.as_ptr()) };
+    let mut next_index = unsafe { state_ref.next.offset_from(state_ref.codes.as_ptr()) };
 
     if lencode_index > Z_ENOUGH.try_into().unwrap() {
-        panic!("Can't serialize this zlib state, lencode too high! (Lencode: {}, Distcode: {}, Nextcode: {})", lencode_index, distcode_index, next_index);
+        lencode_index = 0;
+        //panic!("Can't serialize this zlib state, lencode too high! (Lencode: [{} {:?} {:?}], Distcode: {}, Nextcode: {})", lencode_index, state_ref.lencode, state_ref.codes.as_ptr(), distcode_index, next_index);
+    }
+
+    if distcode_index > Z_ENOUGH.try_into().unwrap() {
+        distcode_index = 0;
+        //panic!("Can't serialize this zlib state, lencode too high! (Lencode: [{} {:?} {:?}], Distcode: {}, Nextcode: {})", lencode_index, state_ref.lencode, state_ref.codes.as_ptr(), distcode_index, next_index);
+    }
+
+    if next_index > Z_ENOUGH.try_into().unwrap() {
+        next_index = 0;
+        //panic!("Can't serialize this zlib state, lencode too high! (Lencode: [{} {:?} {:?}], Distcode: {}, Nextcode: {})", lencode_index, state_ref.lencode, state_ref.codes.as_ptr(), distcode_index, next_index);
     }
 
     buf.put_u32(lencode_index as u32);
@@ -118,6 +134,11 @@ pub(crate) fn write_zlib_state(buf: &mut BytesMut, stream: &mut mz_stream) {
 }
 
 pub(crate) fn restore_zlib_state(buf: &mut Bytes, stream: &mut mz_stream) {
+    if buf.get_u32() != Z_MAGIC {
+        error!("Invalid magic number while reading zlib state");
+        return;
+    }
+
     stream.total_in = buf.get_u64();
     stream.total_out = buf.get_u64();
     stream.data_type = buf.get_i32();

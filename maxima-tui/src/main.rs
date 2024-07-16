@@ -19,7 +19,7 @@ use maxima::{
 };
 
 use maxima::{
-    content::downloader::ZipDownloader,
+    content::downloader::GameDownloader,
     core::{
         auth::{nucleus_token_exchange, TokenResponse},
         clients::JUNO_PC_CLIENT_ID,

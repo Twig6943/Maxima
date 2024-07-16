@@ -19,7 +19,7 @@ use maxima::{
 };
 
 use maxima::{
-    content::downloader::ZipDownloader,
+    content::downloader::GameDownloader,
     core::{
         auth::{nucleus_token_exchange, TokenResponse},
         clients::JUNO_PC_CLIENT_ID,
@@ -397,7 +397,7 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
 
     info!("URL: {}", url.url());
 
-    let downloader = ZipDownloader::new(&url.url()).await?;
+    let downloader = GameDownloader::new(game.base_offer().slug(), &url.url(), "/home/battledash/dev/rust/Maxima/DownloadTest").await?;
 
     let num_of_entries = downloader.manifest().entries().len();
     info!("Entries: {}", num_of_entries);
@@ -457,7 +457,7 @@ async fn download_specific_file(
 
     debug!("URL: {}", url.url());
 
-    let downloader = ZipDownloader::new(&url.url()).await?;
+    let downloader = GameDownloader::new("test-game", &url.url(), "DownloadTest").await?;
     let num_of_entries = downloader.manifest().entries().len();
     info!("Entries: {}", num_of_entries);
 

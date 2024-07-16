@@ -13,7 +13,7 @@ use crate::core::{
 };
 
 pub mod downloader;
-pub mod patcher;
+pub mod manager;
 pub mod zip;
 pub mod zlib;
 

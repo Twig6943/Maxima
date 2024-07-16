@@ -47,9 +47,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    lsx::{self, types::LSXRequestType},
-    rtm::client::RtmClient,
-    util::native::maxima_dir,
+    content::manager::ContentManager, lsx::{self, types::LSXRequestType}, rtm::client::RtmClient, util::native::maxima_dir
 };
 
 use self::{
@@ -59,13 +57,10 @@ use self::{
     library::GameLibrary,
     locale::Locale,
     service_layer::{
-        ServiceAvatarListBuilder, ServiceFriends, ServiceGameProductType,
-        ServiceGetBasicPlayerRequestBuilder, ServiceGetMyFriendsRequestBuilder,
-        ServiceGetPreloadedOwnedGamesRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
-        ServiceImageBuilder, ServiceLayerClient, ServiceOwnershipStatus, ServicePlatform,
-        ServicePlayer, ServicePlayerBuilder, ServiceStorefront, ServiceUser,
-        ServiceUserBuilder, ServiceUserGameProduct, SERVICE_REQUEST_GETBASICPLAYER,
-        SERVICE_REQUEST_GETMYFRIENDS, SERVICE_REQUEST_GETPRELOADEDOWNEDGAMES,
+        ServiceAvatarListBuilder, ServiceFriends, ServiceGetBasicPlayerRequestBuilder,
+        ServiceGetMyFriendsRequestBuilder, ServiceGetUserPlayerRequest, ServiceImage,
+        ServiceImageBuilder, ServiceLayerClient, ServicePlayer, ServicePlayerBuilder, ServiceUser,
+        ServiceUserBuilder, SERVICE_REQUEST_GETBASICPLAYER, SERVICE_REQUEST_GETMYFRIENDS,
         SERVICE_REQUEST_GETUSERPLAYER,
     },
 };
@@ -99,6 +94,7 @@ pub struct Maxima {
     lsx_connections: u16,
 
     cloud_sync: CloudSyncClient,
+    content_manager: ContentManager,
 
     #[getter(skip)]
     rtm: RtmClient,
@@ -189,6 +185,7 @@ impl Maxima {
             lsx_event_callback: None,
             lsx_connections: 0,
             cloud_sync: CloudSyncClient::new(auth_storage.clone()),
+            content_manager: ContentManager::new(auth_storage.clone()).await?,
             rtm: RtmClient::new(auth_storage),
             request_cache,
             dummy_local_user,
@@ -202,7 +199,8 @@ impl Maxima {
                 .load_auth_storage(true)
                 .dummy_local_user(false)
                 .build()?,
-        ).await
+        )
+        .await
     }
 
     pub async fn start_lsx(&self, maxima: LockedMaxima) -> Result<()> {
@@ -423,7 +421,10 @@ impl Maxima {
         info!("Game stopped");
 
         if let Some(offer) = playing.offer() {
-            let result = self.cloud_sync.obtain_lock(offer, CloudSyncLockMode::Write).await;
+            let result = self
+                .cloud_sync
+                .obtain_lock(offer, CloudSyncLockMode::Write)
+                .await;
             if let Err(err) = result {
                 error!("Failed to obtain CloudSync write lock: {}", err);
             } else {
