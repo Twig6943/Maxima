@@ -353,28 +353,6 @@ impl<'a> EntryDownloadRequest<'a> {
         Ok(())
     }
 
-    // async fn download(&mut self) {
-    //     while self.chunks.len() > self.chunk as usize {
-    //         log::info!("Downloading {}, chunk {}", self.entry.name(), self.chunk);
-
-    //         self.download_chunk(self.chunk).await;
-
-    //         self.decoder.save_state().await;
-    //         self.chunk += 1;
-
-    //         // For debugging
-    //         //self.decoder.restore_state().await;
-    //     }
-    // }
-
-    // pub async fn download_chunk(&mut self, chunk: u32) {
-    //     let mut result = Err(DownloadError::ChunkFailed);
-    //     while let Err(_) = result {
-    //         let chunk = &self.chunks[chunk as usize];
-    //         result = self.download_range(chunk.start, chunk.end).await;
-    //     }
-    // }
-
     /// End is not inclusive
     pub async fn download_range(&mut self, start: i64, end: i64) -> Result<(), DownloadError> {
         let offset = self.entry.data_offset();
@@ -457,14 +435,12 @@ impl GameDownloader {
 
         if !file_path.exists() {
             if !file_path.parent().unwrap().exists() {
-                warn!("Creating {}", file_path.parent().unwrap().display());
                 create_dir_all(&file_path.parent().unwrap()).await?;
             }
 
             if entry.name().ends_with("/") && !file_path.exists() {
                 // This is a folder, create the dir
                 debug!("{} is a directory", entry.name());
-                warn!("Creating {}", file_path.display());
                 create_dir(file_path).await?;
                 return Ok(0);
             }
@@ -510,18 +486,15 @@ impl GameDownloader {
         };
 
         if state == EntryDownloadState::Resumable {
-            info!("Resuming {}", entry.name());
             let state_file = zstate_path(&self.id, &entry.name());
             if state_file.exists() {
                 let mut buf = Bytes::from(tokio::fs::read(state_file).await?);
-                info!("Restoring state");
                 decoder.restore_state(&mut buf);
             } else {
                 tokio::fs::create_dir_all(state_file.parent().unwrap()).await?;
             }
         }
 
-        info!("State: {:?}", state);
         let mut request =
             EntryDownloadRequest::new(&context, &self.url, entry, self.client.clone(), decoder);
         request.download().await?;
@@ -564,14 +537,10 @@ where
         match self.inner.poll_next_unpin(cx) {
             std::task::Poll::Ready(Some(Ok(chunk))) => {
                 self.byte_count += chunk.len();
-                if self.byte_count >= 1_000_000 {
-                    //panic!("W");
-                }
-                //info!("Byte count: {}", self.byte_count);
                 std::task::Poll::Ready(Some(Ok(chunk)))
             }
             std::task::Poll::Ready(Some(Err(err))) => {
-                error!("Error: {:?}", err);
+                error!("Downloader error: {:?}", err);
                 std::task::Poll::Ready(Some(Err(futures::io::Error::other(
                     DownloadError::DownloadFailed(self.byte_count),
                 ))))
