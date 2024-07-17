@@ -880,10 +880,10 @@ impl eframe::App for MaximaEguiApp {
                                         puffin::profile_scope!("you");
                                         //profile.painter().rect_filled(profile.available_rect_before_wrap(), Rounding::ZERO, Color32::from_white_alpha(20));
                                         profile.with_layout(
-                                            egui::Layout::right_to_left(
-                                                egui::Align::Center,
-                                            ),
-                                            |rtl| {
+                                            egui::Layout::right_to_left(egui::Align::Center), |rtl| {
+                                                rtl.style_mut().spacing.item_spacing.x = 0.0;
+                                                rtl.allocate_space(vec2(1.0, 1.0));
+                                                rtl.style_mut().spacing.item_spacing.x = 4.0;
                                                 let img_response = rtl.image((self.user_pfp_renderable, vec2(36.0, 36.0)));
                                                 let stroke = Stroke::new(2.0, {
                                                     if self.playing_game.is_some() {
@@ -892,7 +892,7 @@ impl eframe::App for MaximaEguiApp {
                                                         Color32::GREEN
                                                     }
                                                 });
-                                                rtl.painter().rect(img_response.rect.expand(0.0), Rounding::same(4.0), Color32::TRANSPARENT, stroke);
+                                                rtl.painter().rect(img_response.rect.expand(1.0), Rounding::same(4.0), Color32::TRANSPARENT, stroke);
                                                 
                                                 rtl.label(
                                                     egui::RichText::new(self.user_name.clone())
@@ -1047,10 +1047,13 @@ impl eframe::App for MaximaEguiApp {
                                                 let size = vec2(400.0 - (24.0 + ui.style().spacing.item_spacing.x*2.0), 30.0);
                                                 ui.add_sized(size, egui::TextEdit::singleline(&mut self.installer_state.locate_path).vertical_align(egui::Align::Center));
                                                 ui.add_sized(button_size, egui::Button::new("BROWSE"));
-                                                if ui.add_sized(button_size, egui::Button::new("LOCATE")).clicked() {
-                                                    self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(slug.clone(), self.installer_state.locate_path.clone())).unwrap();
-                                                    self.installer_state.locating = true;
-                                                }
+                                                ui.add_enabled_ui(PathBuf::from(&self.installer_state.locate_path).exists(), |ui| {
+
+                                                    if ui.add_sized(button_size, egui::Button::new("LOCATE")).clicked() {
+                                                        self.backend.backend_commander.send(bridge_thread::MaximaLibRequest::LocateGameRequest(slug.clone(), self.installer_state.locate_path.clone())).unwrap();
+                                                        self.installer_state.locating = true;
+                                                    }
+                                                });
                                             });
                                         }
                                         ui.label("");

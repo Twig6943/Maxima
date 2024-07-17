@@ -347,6 +347,24 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
             });
             }
         });
+
+        ui.horizontal_wrapped(|dlc| {
+            puffin::profile_scope!("dlc");
+            for package in game.dlc {
+                
+                let (rect, response) = dlc.allocate_exact_size(vec2(400.0, 200.0), egui::Sense::click());
+                dlc.painter().rect_filled(rect, Rounding::same(4.0), Color32::from_black_alpha(128));
+                dlc.allocate_ui_at_rect(rect, |dlc| {
+                    let has = match package.product().status() {
+                        maxima::core::service_layer::ServiceOwnershipStatus::Active => true,
+                        maxima::core::service_layer::ServiceOwnershipStatus::Disabled => false,
+                    };
+
+                    dlc.heading(format!("{}", package.offer().display_name()));
+                });
+            }
+        });
+
         {
             puffin::profile_scope!("filler");
             for _idx in 0..75 {
