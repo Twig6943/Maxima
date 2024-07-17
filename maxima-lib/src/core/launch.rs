@@ -180,10 +180,10 @@ pub async fn start_game(
 
                 let result = maxima.cloud_sync().obtain_lock(offer.as_ref().unwrap(), CloudSyncLockMode::Read).await;
                 if let Err(err) = result {
-                    error!("Failed to obtain CloudSync write lock: {}", err);
+                    error!("Failed to obtain CloudSync read lock: {}", err);
                 } else {
                     let lock = result.unwrap();
-                    
+
                     let result = lock.sync_files().await;
                     if let Err(err) = result {
                         error!("Failed to sync cloud save: {}", err);
