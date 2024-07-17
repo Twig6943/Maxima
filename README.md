@@ -2,10 +2,10 @@
 ## A free and open-source replacement for the EA Desktop Launcher
 ![Logo](images/1500x500.jpg)
 
-Maxima is an open-source replacement for the EA Desktop/Origin game launcher, running natively on Linux and Windows, with MacOS support in progress.
-
 > [!WARNING]
-> Maxima is in beta. Parts of it may not be fully stable, and we're actively fixing bugs and adding features. Please create an issue if you notice strange behavior.
+> Maxima is in beta. Parts of it may not be fully stable, and we're actively fixing bugs and adding features. Please create an [issue](https://github.com/ArmchairDevelopers/Maxima/issues) if you notice strange behavior.
+
+Maxima is an open-source replacement for the EA Desktop/Origin game launcher, running natively on Linux and Windows, with MacOS support in progress.
 
 Maxima itself is a library (`maxima-lib`), with povided CLI (`maxima-cli`), TUI (`maxima-tui`), and GUI (`maxima-ui`) frontends. Other launchers compatible with Maxima's license may implement it as a backend. It's used by our sister project, [KYBER](https://uplink.kyber.gg/news/features-overview).
 
