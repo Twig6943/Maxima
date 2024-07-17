@@ -285,30 +285,26 @@ impl BridgeThread {
                     .await?;
                 }
                 MaximaLibRequest::LocateGameRequest(slug, path) => {
-                    #[cfg(unix)] {        
-                        maxima::core::launch::mx_linux_setup().await?;
-                        let mut path = path;
-                        if path.ends_with("/") || path.ends_with("\\") {
-                            path.remove(path.len()-1);
-                        }
-                        let path = PathBuf::from(path);
-                        let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await;
-                        if let std::result::Result::Ok(manifest) = manifest {
-                            let guh = manifest.run_touchup(&path).await;
-                            if guh.is_err() {
-                                backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: guh.unwrap_err(), xml_path: path.join(DIP_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
-                            } else {
-                                backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Success)).unwrap();
-                            }
+                    #[cfg(unix)]
+                    maxima::core::launch::mx_linux_setup().await?;
+                    let mut path = path;
+                    if path.ends_with("/") || path.ends_with("\\") {
+                        path.remove(path.len()-1);
+                    }
+                    let path = PathBuf::from(path);
+                    let manifest = DiPManifest::read(&path.join(DIP_RELATIVE_PATH)).await;
+                    if let std::result::Result::Ok(manifest) = manifest {
+                        let guh = manifest.run_touchup(&path).await;
+                        if guh.is_err() {
+                            backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: guh.unwrap_err(), xml_path: path.join(DIP_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
                         } else {
-                            backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: manifest.unwrap_err(), xml_path: path.join(DIP_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
+                            backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Success)).unwrap();
                         }
-                        info!("finished locating");
-                        ctx.request_repaint();
+                    } else {
+                        backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(InteractThreadLocateGameFailure { reason: manifest.unwrap_err(), xml_path: path.join(DIP_RELATIVE_PATH).to_str().unwrap().to_string() }))).unwrap();
                     }
-                    #[cfg(not(unix))] {
-                        backend_responder.send(MaximaLibResponse::LocateGameResponse(InteractThreadLocateGameResponse::Error(anyhow::Error::msg("Windows not supported"))));
-                    }
+                    info!("finished locating");
+                    ctx.request_repaint();
                 }
                 MaximaLibRequest::InstallGameRequest(offer, path) => {
                     let mut maxima = maxima_arc.lock().await;
