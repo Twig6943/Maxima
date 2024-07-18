@@ -221,13 +221,13 @@ pub async fn handle_query_image_request(
     let arc = state.write().await.maxima_arc();
     let maxima = arc.lock().await;
 
-    let path = maxima
-        .avatar_image(parts[1], request.attr_Width, request.attr_Height)
-        .await?;
+    let path = platform_path(
+        maxima
+            .avatar_image(parts[1], request.attr_Width, request.attr_Height)
+            .await?,
+    );
 
     let mut images = Vec::new();
-
-    // TODO Download and populate images
     images.push(LSXImage {
         attr_ImageId: request.attr_ImageId,
         attr_Width: request.attr_Width,
