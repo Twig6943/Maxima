@@ -170,9 +170,19 @@ impl DiPManifest {
 
     #[cfg(windows)]
     pub async fn run_touchup(&self, install_path: &PathBuf) -> Result<()> {
+        use tokio::process::Command;
+
         let args = self.collect_touchup_args(install_path);
         let path = install_path.join(&self.touchup.path());
-        // TODO
+
+        let mut binding = Command::new(path);
+        let child = binding.args(args);
+
+        let status = child.spawn()?.wait().await?;
+        if !status.success() {
+            bail!("Failed to run touchup: {}", status.code().unwrap());
+        }
+
         Ok(())
     }
 
