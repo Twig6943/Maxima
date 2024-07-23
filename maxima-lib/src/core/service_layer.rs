@@ -75,6 +75,7 @@ define_graphql_request!(SearchPlayer, players); // Input: ServiceSearchPlayerReq
 define_graphql_request!(getLegacyCatalogDefs, legacyOffers); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyOffer>
 define_graphql_request!(getGameProducts, gameProducts); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
 define_graphql_request!(GetGamePlayTimes, me); // Input: ServiceGetLegacyCatalogDefsRequest, Output: Vec<ServiceLegacyProduct>
+define_graphql_request!(GetHeroBackgroundImage, gameHubCollection); // Input: ServiceHeroBackgroundImageRequest, Output: GameHubCollection
 
 #[derive(Clone)]
 pub struct ServiceLayerClient {
@@ -613,4 +614,22 @@ impl ServiceLegacyOffer {
 
 service_layer_type!(RecentGames, {
 
+});
+
+service_layer_type!(HeroBackgroundImageRequest, {
+    game_slug: String,
+    locale: String, // Short string, eg "en"
+});
+
+service_layer_type!(Asset, {
+    url: Option<String>,
+});
+
+service_layer_type!(GameHub, {
+    background_video: ServiceAsset,
+    hero_background: ServiceImageRendition,
+});
+
+service_layer_type!(GameHubCollection, {
+    items: Vec<ServiceGameHub>,
 });
