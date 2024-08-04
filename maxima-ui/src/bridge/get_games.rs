@@ -55,31 +55,30 @@ fn get_logo_image(images: &Option<ServiceGame>) -> Option<String> {
 }
 
 async fn handle_images(slug: String, locale: String, has_hero: bool, has_logo: bool, channel: Sender<UIImageCacheLoaderCommand>, service_layer: ServiceLayerClient) -> Result<()> {
-    let images: Option<ServiceGame> = // TODO: make it a result
-            if !has_hero || !has_logo { //game hasn't been cached yet
-                service_layer
-                .request(SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder::default()
-                .should_fetch_context_image(!has_logo)
-                .should_fetch_backdrop_images(!has_hero)
-                .game_slug(slug.clone())
-                .locale(locale.clone())
-                .build()?).await?
-            } else { None };
+    debug!("handling image downloads for {}", &slug);
+    let images = service_layer
+    .request(SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder::default()
+    .should_fetch_context_image(!has_logo)
+    .should_fetch_backdrop_images(!has_hero)
+    .game_slug(slug.clone())
+    .locale(locale.clone())
+    .build()?).await?;
 
-        if !has_hero {
-            if let Some(hero) = get_preferred_hero_image(&images).await {
-                channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Hero(slug.clone()), hero)).unwrap()
-            }
+    if !has_hero {
+        if let Some(hero) = get_preferred_hero_image(&images).await {
+            channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Hero(slug.clone()), hero)).unwrap()
         }
+    }
 
-        if !has_logo {
-            if let Some(logo) = get_logo_image(&images) {
-                channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Logo(slug), logo))?
-            } else {
-                channel.send(UIImageCacheLoaderCommand::Stub(crate::ui_image::UIImageType::Logo(slug)))?
-            }
+    if !has_logo {
+        if let Some(logo) = get_logo_image(&images) {
+            channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Logo(slug), logo))?
+        } else {
+            channel.send(UIImageCacheLoaderCommand::Stub(crate::ui_image::UIImageType::Logo(slug)))?
         }
-        Ok(())
+    }
+
+    Ok(())
 }
 
 
@@ -149,9 +148,9 @@ pub async fn get_games_request(
             let locale_send = locale.clone();
             let channel_send = channel1.clone();
             let service_layer_send = service_layer.clone();
-            tokio::task::spawn(async move {
-                handle_images(slug_send, locale_send, has_hero, has_logo, channel_send, service_layer_send)
-            });
+            tokio::task::spawn(async move { handle_images(slug_send, locale_send, has_hero, has_logo, channel_send, service_layer_send).await });
+            tokio::task::yield_now().await;
+
         }
 
         egui::Context::request_repaint(&ctx);
