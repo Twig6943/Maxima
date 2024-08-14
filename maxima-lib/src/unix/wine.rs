@@ -206,7 +206,7 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     let wine_path = env::var("MAXIMA_WINE_COMMAND").unwrap_or_else(|_| "umu-run".to_owned());
 
     // Create command with all necessary wine env variables
-    let mut binding = Command::new(wine_path);
+    let mut binding = Command::new(wine_path.clone());
     let mut child = binding
         .env("WINEPREFIX", proton_prefix_path)
         .env("GAMEID", "umu-0")
