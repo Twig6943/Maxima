@@ -203,7 +203,7 @@ pub async fn run_wine_command<I: IntoIterator<Item = T>, T: AsRef<OsStr>>(
     let proton_prefix_path = wine_prefix_dir()?;
     let eac_path = eac_dir()?;
 
-    let wine_path = env::var("MAXIMA_WINE_COMMAND").unwrap_or_else(|| "umu-run".to_owned());
+    let wine_path = env::var("MAXIMA_WINE_COMMAND").unwrap_or_else(|_| "umu-run".to_owned());
 
     // Create command with all necessary wine env variables
     let mut binding = Command::new(wine_path);
