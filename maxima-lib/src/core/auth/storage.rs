@@ -174,7 +174,7 @@ impl AuthStorage {
         }))
     }
 
-    pub(crate) fn load() -> Result<LockedAuthStorage> {
+    pub fn load() -> Result<LockedAuthStorage> {
         let file = maxima_dir()?.join(FILE);
         if !file.exists() {
             return Ok(Arc::new(Mutex::new(Self::default())));
@@ -191,7 +191,7 @@ impl AuthStorage {
         Ok(Arc::new(Mutex::new(storage)))
     }
 
-    pub(crate) fn save(&self) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         let file = maxima_dir()?.join(FILE);
         fs::write(file, toml::to_string(&self)?)?;
         Ok(())
