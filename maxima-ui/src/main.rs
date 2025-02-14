@@ -187,9 +187,9 @@ pub struct GameDetails {
     /// Path the game is installed to
     path: String,
     /// Minimum specs to run the game, in EasyMark spec
-    system_requirements_min: String,
+    system_requirements_min: Option<String>,
     /// Recommended specs to run the game, in EasyMark spec
-    system_requirements_rec: String,
+    system_requirements_rec: Option<String>,
 }
 
 #[derive(Clone)]

@@ -295,21 +295,25 @@ pub fn game_view_details_panel(app : &mut MaximaEguiApp, ui: &mut Ui) {
         ui.horizontal(|sysreq| {
             puffin::profile_scope!("system requirements");
             if let Some(details) = game_details {
+              if let Some(min_requirements) = &details.system_requirements_min {
+                sysreq.vertical(|min| {
+                  puffin::profile_scope!("minimum");
+                  min.set_min_width(req_width);
+                  min.set_max_width(req_width);
+                  min.heading(&app.locale.localization.games_view.details.min_system_req);
+                  egui_demo_lib::easy_mark::easy_mark(min, min_requirements);
+                });
+              }
 
-            sysreq.vertical(|min| {
-                puffin::profile_scope!("minimum");
-                min.set_min_width(req_width);
-                min.set_max_width(req_width);
-                min.heading(&app.locale.localization.games_view.details.min_system_req);
-                egui_demo_lib::easy_mark::easy_mark(min, &details.system_requirements_min);
-            });
-            sysreq.vertical(|rec| {
-                puffin::profile_scope!("recommended");
-                rec.set_min_width(req_width);
-                rec.set_max_width(req_width);
-                rec.heading(&app.locale.localization.games_view.details.rec_system_req);
-                egui_demo_lib::easy_mark::easy_mark(rec, &details.system_requirements_rec);
-            });
+              if let Some(rec_requirements) = &details.system_requirements_rec {
+                sysreq.vertical(|rec| {
+                  puffin::profile_scope!("recommended");
+                  rec.set_min_width(req_width);
+                  rec.set_max_width(req_width);
+                  rec.heading(&app.locale.localization.games_view.details.rec_system_req);
+                  egui_demo_lib::easy_mark::easy_mark(rec, rec_requirements);
+                });
+              }
             } else {
 
             sysreq.vertical(|min| {

@@ -34,8 +34,12 @@ pub async fn game_details_request(
 
     //TODO: parse async
 
-    let min = html_to_easymark(yeah.system_requirements()[0].minimum());
-    let rec = html_to_easymark(yeah.system_requirements()[0].recommended());
+    let (min, rec) = if yeah.system_requirements().len() >= 1 {
+        (Some(html_to_easymark(yeah.system_requirements()[0].minimum())),
+         Some(html_to_easymark(yeah.system_requirements()[0].recommended())))
+    } else {
+        (None, None)
+    };
 
     let res = MaximaLibResponse::GameDetailsResponse(InteractThreadGameDetailsResponse {
         slug: slug.clone(),
