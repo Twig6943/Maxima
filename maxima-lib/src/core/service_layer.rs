@@ -641,7 +641,7 @@ service_layer_type!(Asset, {
 });
 
 service_layer_type!(GameHub, {
-    background_video: ServiceAsset,
+    background_video: Option<ServiceAsset>,
     hero_background: ServiceImageRendition,
 });
 
