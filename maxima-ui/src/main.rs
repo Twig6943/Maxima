@@ -653,17 +653,21 @@ impl eframe::App for MaximaEguiApp {
                 let has_game_img = self.backend_state == BackendStallState::BingChilling && self.games.len() > 0;
                 let gaming = self.page_view == PageType::Games && has_game_img;
                 let how_game: f32 = ctx.animate_bool(egui::Id::new("MainAppBackgroundGamePageFadeBool"), gaming);
-                if has_game_img
-                {
+                if has_game_img {
                     if self.game_sel.is_empty() && self.games.len() > 0 {
                         if let Some(key) = self.games.keys().next() {
                             self.game_sel = key.clone()
                         }
                     }
-                    //TODO: background
-                    match &self.img_cache.get(ui_image::UIImageType::Hero(self.games[&self.game_sel].slug.clone())) {
+                    
+                    match &self.img_cache.get(ui_image::UIImageType::Background(self.games[&self.game_sel].slug.clone())) {
                         Some(tex) => render.draw(ui, fullrect, tex.size_vec2(), tex.id(), how_game, self.settings.performance_settings),
-                        None => { render.draw(ui, fullrect, fullrect.size(), TextureId::Managed(1), 0.0, self.settings.performance_settings); },
+                        None => {
+                            match &self.img_cache.get(ui_image::UIImageType::Hero(self.games[&self.game_sel].slug.clone())) {
+                                Some(tex) => render.draw(ui, fullrect, tex.size_vec2(), tex.id(), how_game, self.settings.performance_settings),
+                                None => { render.draw(ui, fullrect, fullrect.size(), TextureId::Managed(1), 0.0, self.settings.performance_settings); },
+                            }
+                        },
                     }
                 } else {
                     render.draw(ui, fullrect, fullrect.size(), TextureId::Managed(1), 0.0, self.settings.performance_settings);

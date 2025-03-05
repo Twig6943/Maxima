@@ -1,12 +1,39 @@
 use anyhow::{Ok, Result, bail};
 use egui::Context;
 use log::{debug, info};
-use maxima::{core::{service_layer::{ServiceGame, ServiceGameImagesRequestBuilder, ServiceLayerClient, SERVICE_REQUEST_GAMEIMAGES}, LockedMaxima}, util::native::maxima_dir};
+use maxima::{core::{service_layer::{ServiceGame, ServiceGameHubCollection, ServiceGameImagesRequestBuilder, ServiceHeroBackgroundImageRequestBuilder, ServiceLayerClient, SERVICE_REQUEST_GAMEIMAGES, SERVICE_REQUEST_GETHEROBACKGROUNDIMAGE}, LockedMaxima}, util::native::maxima_dir};
 use std::{fs, sync::mpsc::Sender};
 
 use crate::{
     bridge_thread::{InteractThreadGameListResponse, MaximaLibResponse}, ui_image::UIImageCacheLoaderCommand, GameDetailsWrapper, GameInfo
 };
+
+fn get_preferred_bg_hero(heroes: &Option<ServiceGameHubCollection>) -> Option<String> {
+    if heroes.is_none() {
+        return None;
+    }
+    
+    let bg = heroes.as_ref().unwrap().items().get(0);
+    if bg.is_none() {
+        return None;
+    }
+
+    let bg = bg.as_ref().unwrap().hero_background();
+
+    if let Some(img) = bg.aspect_16x9_image() {
+        return Some(img.path().clone());
+    }
+
+    if let Some(img) = bg.aspect_2x1_image() {
+        return Some(img.path().clone());
+    }
+
+    if let Some(img) = bg.aspect_10x3_image() {
+        return Some(img.path().clone());
+    }
+
+    None    
+}
 
 async fn get_preferred_hero_image(images: &Option<ServiceGame>) -> Option<String> {
     if images.is_none() {
@@ -54,27 +81,52 @@ fn get_logo_image(images: &Option<ServiceGame>) -> Option<String> {
     Some(largest_logo.as_ref().unwrap().path().to_string())
 }
 
-async fn handle_images(slug: String, locale: String, has_hero: bool, has_logo: bool, channel: Sender<UIImageCacheLoaderCommand>, service_layer: ServiceLayerClient) -> Result<()> {
+async fn handle_images(slug: String, locale: String, has_hero: bool, has_logo: bool, has_background: bool, channel: Sender<UIImageCacheLoaderCommand>, service_layer: ServiceLayerClient) -> Result<()> {
     debug!("handling image downloads for {}", &slug);
-    let images = service_layer
-    .request(SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder::default()
-    .should_fetch_context_image(!has_logo)
-    .should_fetch_backdrop_images(!has_hero)
-    .game_slug(slug.clone())
-    .locale(locale.clone())
-    .build()?).await?;
+    let images_0 = if has_hero && has_logo { None } else {
+        Some(service_layer
+        .request(SERVICE_REQUEST_GAMEIMAGES, ServiceGameImagesRequestBuilder::default()
+        .should_fetch_context_image(!has_logo)
+        .should_fetch_backdrop_images(!has_hero)
+        .game_slug(slug.clone())
+        .locale(locale.clone())
+        .build()?))
+    };
+    let images_1 = if has_background { None } else {
+        Some(service_layer.request(SERVICE_REQUEST_GETHEROBACKGROUNDIMAGE,
+        ServiceHeroBackgroundImageRequestBuilder::default()
+        .game_slug(slug.clone())
+        .locale(locale.clone())
+        .build()?))
+    };
+
+    let images_0 = if let Some(images) = images_0 {
+        images.await?
+    } else { None };
 
     if !has_hero {
-        if let Some(hero) = get_preferred_hero_image(&images).await {
+        if let Some(hero) = get_preferred_hero_image(&images_0).await {
             channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Hero(slug.clone()), hero)).unwrap()
         }
     }
 
     if !has_logo {
-        if let Some(logo) = get_logo_image(&images) {
-            channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Logo(slug), logo))?
+        if let Some(logo) = get_logo_image(&images_0) {
+            channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Logo(slug.clone()), logo))?
         } else {
-            channel.send(UIImageCacheLoaderCommand::Stub(crate::ui_image::UIImageType::Logo(slug)))?
+            channel.send(UIImageCacheLoaderCommand::Stub(crate::ui_image::UIImageType::Logo(slug.clone())))?
+        }
+    }
+
+    // I'm doing it down here because this call has a tendency to fail at the time of writing.
+    // If it's down here it only takes down the background image, and not the logo/hero.
+    let images_1 = if let Some(images) = images_1 {
+        images.await?
+    } else { None };
+
+    if !has_background {
+        if let Some(background_image) = get_preferred_bg_hero(&images_1) {
+            channel.send(UIImageCacheLoaderCommand::ProvideRemote(crate::ui_image::UIImageType::Background(slug), background_image)).unwrap()
         }
     }
 
@@ -106,9 +158,11 @@ pub async fn get_games_request(
     }
 
     for game in owned_games {
-        info!("processing {}", &game.base_offer().slug());
+        let slug = game.base_offer().slug().clone();
+        info!("processing {}", &slug);
+
         let game_info = GameInfo {
-            slug: game.base_offer().slug().to_string(),
+            slug: slug.clone(),
             offer: game.base_offer().offer().offer_id().to_string(),
             name: game.name(),
             details: GameDetailsWrapper::Unloaded,
@@ -129,6 +183,11 @@ pub async fn get_games_request(
         });
         channel.send(res)?;
         
+        let background_hero = maxima_dir()
+            .unwrap()
+            .join("cache/ui/images/")
+            .join(&slug)
+            .join("background.jpg");
         let game_hero = maxima_dir()
             .unwrap()
             .join("cache/ui/images/")
@@ -141,16 +200,16 @@ pub async fn get_games_request(
             .join("logo.png");
         let has_hero = fs::metadata(&game_hero).is_ok();
         let has_logo = fs::metadata(&game_logo).is_ok();
+        let has_background = fs::metadata(&background_hero).is_ok();
 
-        if !has_hero || !has_logo {
+        if !has_hero || !has_logo || !has_background {
             //we're like 20 tasks deep i swear but this shit's gonna be real fast, trust
             let slug_send = slug.clone();
             let locale_send = locale.clone();
             let channel_send = channel1.clone();
             let service_layer_send = service_layer.clone();
-            tokio::task::spawn(async move { handle_images(slug_send, locale_send, has_hero, has_logo, channel_send, service_layer_send).await });
+            tokio::task::spawn(async move { handle_images(slug_send, locale_send, has_hero, has_logo, has_background, channel_send, service_layer_send).await });
             tokio::task::yield_now().await;
-
         }
 
         egui::Context::request_repaint(&ctx);
