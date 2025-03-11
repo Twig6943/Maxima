@@ -52,7 +52,7 @@ impl UIImageCache {
 
 
         let yeah = load_image_bytes(include_bytes!("../res/usericon_tmp.png")).unwrap();
-        let placeholder_avatar = context.load_texture("Placeholder Avatar", yeah, TextureOptions::NEAREST);
+        let placeholder_avatar = context.load_texture("Placeholder Avatar", yeah, TextureOptions::LINEAR);
         let send_cache = cache.clone();
         tokio::task::spawn(async move {
             UIImageCache::run(context, rx, send_cache).await;
@@ -109,7 +109,7 @@ impl UIImageCache {
                     io::copy(&mut body.as_slice(), &mut file).await?;
 
                     if let Ok(ci) = load_image_bytes(&body) {
-                        cache.lock().unwrap().insert(needle, Some(context.load_texture(path.to_str().unwrap().to_string(), ci, TextureOptions::NEAREST)));
+                        cache.lock().unwrap().insert(needle, Some(context.load_texture(path.to_str().unwrap().to_string(), ci, TextureOptions::LINEAR)));
                     }
                 } else {
                     debug!("has no remote or local file");
@@ -150,7 +150,7 @@ impl UIImageCache {
                     },
                 };
                 
-                cache.lock().unwrap().insert(needle, Some(context.load_texture(path.to_str().unwrap().to_string(), color_image, TextureOptions::NEAREST)));
+                cache.lock().unwrap().insert(needle, Some(context.load_texture(path.to_str().unwrap().to_string(), color_image, TextureOptions::LINEAR)));
             }
             context.request_repaint();
             Ok(())
