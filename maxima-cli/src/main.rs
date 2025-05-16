@@ -353,7 +353,7 @@ async fn interactive_start_game(maxima_arc: LockedMaxima) -> Result<()> {
 
         let mut owned_games = Vec::new();
         for game in maxima.mut_library().games().await {
-            if !game.base_offer().installed().await {
+            if !game.base_offer().is_installed().await {
                 continue;
             }
 
@@ -381,7 +381,7 @@ async fn interactive_install_game(maxima_arc: LockedMaxima) -> Result<()> {
     let offer_id = {
         let mut owned_games = Vec::new();
         for game in maxima.mut_library().games().await {
-            if game.base_offer().installed().await {
+            if game.base_offer().is_installed().await {
                 continue;
             }
 
@@ -741,7 +741,7 @@ async fn list_games(maxima_arc: LockedMaxima) -> Result<()> {
             title.base_offer().slug(),
             title.name(),
             title.base_offer().offer_id(),
-            title.base_offer().installed().await,
+            title.base_offer().is_installed().await,
             width = 35,
             width2 = 35,
             width3 = 25,

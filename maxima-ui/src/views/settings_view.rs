@@ -34,6 +34,10 @@ pub fn settings_view(app: &mut MaximaEguiApp, ui: &mut Ui) {
         );
         if ui.add_sized(vec2(100.0, 30.0), egui::Button::new("BROWSE")).clicked() {}
     });
+    ui.checkbox(
+        &mut app.settings.ignore_ood_games,
+        &app.locale.localization.settings_view.game_installation.ignore_ood_warning,
+    );
 
     ui.heading("");
     ui.heading(&localization.performance.header);

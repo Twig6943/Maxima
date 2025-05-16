@@ -17,7 +17,7 @@ use std::{fs, sync::mpsc::Sender};
 use crate::{
     bridge_thread::{InteractThreadGameListResponse, MaximaLibResponse},
     ui_image::UIImageCacheLoaderCommand,
-    GameDetailsWrapper, GameInfo,
+    GameDetailsWrapper, GameInfo, GameVersionInfo,
 };
 
 fn get_preferred_bg_hero(heroes: &Option<ServiceGameHubCollection>) -> Option<String> {
@@ -209,13 +209,32 @@ pub async fn get_games_request(
         let slug = game.base_offer().slug().clone();
         info!("processing {}", &slug);
 
+        let downloads = game.base_offer().offer().downloads();
+        let opt = if downloads.len() == 1 {
+            &downloads[0]
+        } else {
+            downloads.iter().find(|item| item.download_type() == "LIVE").unwrap()
+        };
+
+        let version =
+            if let std::result::Result::Ok(version) = game.base_offer().installed_version().await {
+                version
+            } else {
+                "Unknown".to_owned()
+            };
+
         let game_info = GameInfo {
             slug: slug.clone(),
             offer: game.base_offer().offer().offer_id().to_string(),
             name: game.name(),
             details: GameDetailsWrapper::Unloaded,
+            version: GameVersionInfo {
+                installed: version,
+                latest: opt.version().to_owned(),
+                mandatory: opt.treat_updates_as_mandatory().clone(),
+            },
             dlc: game.extra_offers().clone(),
-            installed: game.base_offer().installed().await,
+            installed: game.base_offer().is_installed().await,
             has_cloud_saves: game.base_offer().offer().has_cloud_save(),
         };
         let slug = game_info.slug.clone();

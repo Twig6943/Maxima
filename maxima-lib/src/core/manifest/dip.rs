@@ -59,6 +59,49 @@ dip_type!(
 );
 
 dip_type!(
+    FeatureFlags;
+    attr {
+        allowMultipleInstances: bool,
+        autoUpdateEnabled: bool,
+        dynamicContentSupportEnabled: bool,
+        enableDifferentialUpdate: bool,
+        enableOriginInGameAPI: bool,
+        forceTouchupInstallerAfterUpdate: bool,
+        languageChangeSupportEnabled: bool,
+        treatUpdatesAsMandatory: bool,
+        useGameVersionFromManifest: bool,
+    },
+    data {}
+);
+
+dip_type!(
+    GameVersion;
+    attr {
+        version: String,
+    },
+    data {}
+);
+
+dip_type!(
+    Requirements;
+    attr {
+        osMinVersion: String,
+        osReqs64Bit: bool,
+    },
+    data {}
+);
+
+dip_type!(
+    BuildMetaData;
+    attr {},
+    data {
+        featureFlags: DiPFeatureFlags,
+        gameVersion: DiPGameVersion,
+        requirements: DiPRequirements,
+    }
+);
+
+dip_type!(
     Runtime;
     attr {},
     data {
@@ -99,6 +142,7 @@ dip_type!(
         version: String,
     },
     data {
+        buildMetaData: DiPBuildMetaData,
         runtime: DiPRuntime,
         touchup: DiPTouchup,
     }
@@ -147,6 +191,10 @@ impl DiPManifest {
     pub fn execute_path(&self, trial: bool) -> Option<String> {
         let launcher = self.runtime.launcher.iter().find(|l| l.trial == trial);
         launcher.map(|l| l.file_path.clone())
+    }
+
+    pub fn version(&self) -> Option<String> {
+        Some(self.buildMetaData.gameVersion.attr_version().clone())
     }
 
     #[cfg(unix)]

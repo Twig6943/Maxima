@@ -149,6 +149,7 @@ enum PageType {
 enum PopupModal {
     GameSettings(String),
     GameInstall(String),
+    GameLaunchOOD(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -211,6 +212,13 @@ impl GameSettings {
 }
 
 #[derive(Clone)]
+pub struct GameVersionInfo {
+    installed: String,
+    latest: String,
+    mandatory: bool,
+}
+
+#[derive(Clone)]
 pub struct GameInfo {
     /// Origin slug of the game
     slug: String,
@@ -220,6 +228,7 @@ pub struct GameInfo {
     name: String,
     /// Game info
     details: GameDetailsWrapper,
+    version: GameVersionInfo,
     dlc: Vec<OwnedOffer>,
     installed: bool,
     has_cloud_saves: bool,
@@ -331,6 +340,7 @@ impl FrontendPerformanceSettings {
 pub struct FrontendSettings {
     default_install_folder: String,
     language: FrontendLanguage,
+    ignore_ood_games: bool,
     game_settings: HashMap<String, GameSettings>,
     performance_settings: FrontendPerformanceSettings,
 }
@@ -340,6 +350,7 @@ impl FrontendSettings {
         Self {
             default_install_folder: String::new(),
             language: FrontendLanguage::SystemDefault,
+            ignore_ood_games: false,
             game_settings: HashMap::new(),
             performance_settings: FrontendPerformanceSettings::new(),
         }
@@ -608,6 +619,7 @@ macro_rules! set_app_modal {
                 PopupModal::GameInstall(_) => {
                     $arg1.installer_state = InstallModalState::new(&$arg1.settings);
                 }
+                PopupModal::GameLaunchOOD(_) => {}
             }
             $arg1.modal = $arg2;
         } else {
@@ -809,8 +821,14 @@ impl MaximaEguiApp {
 
                                         ui.separator();
                                     }
+                                    ui.allocate_space(ui.available_size_before_wrap() - vec2(0.0, ui.spacing().interact_size.y));
 
-                                    ui.add_enabled(false, egui::Button::new(format!("  {}  ", &self.locale.localization.modals.game_settings.uninstall.to_ascii_uppercase())));
+                                    ui.horizontal(|ui| {
+                                        ui.label(positional_replace!(self.locale.localization.modals.game_settings.version, "version", &game.version.installed));
+                                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                            ui.add_enabled(false, egui::Button::new(format!("  {}  ", &self.locale.localization.modals.game_settings.uninstall.to_ascii_uppercase())));
+                                        });
+                                    });
                                 } else {
                                     ui.label(&self.locale.localization.modals.game_settings.not_installed);
                                 }
@@ -921,6 +939,49 @@ impl MaximaEguiApp {
                                 });
 
                                 if self.installer_state.should_close { clear = true; }
+                            }
+                            PopupModal::GameLaunchOOD(slug) => 'outer: {
+                                let game = if let Some(game) = self.games.get_mut(slug) { game } else { break 'outer; };
+                                ui.horizontal(|header| {
+                                    header.heading(&self.locale.localization.modals.game_launch_out_of_date.header);
+                                    header.with_layout(Layout::right_to_left(egui::Align::Center), |close_button| {
+                                        close_button.add_enabled_ui(!self.installer_state.locating, |close_button| {
+                                            if close_button.add_sized(vec2(80.0, 30.0), egui::Button::new(&self.locale.localization.modals.close.to_ascii_uppercase())).clicked() {
+                                                clear = true
+                                            }
+                                        });
+                                    });
+                                });
+
+                                ui.separator();
+
+                                ui.label(positional_replace!(&self.locale.localization.modals.game_launch_out_of_date.warning, "gamename", &game.name));
+                                if game.version.mandatory {
+                                    egui::Label::new(egui::RichText::new(positional_replace!(&self.locale.localization.modals.game_launch_out_of_date.really_warning, "gamename", &game.name)).color(Color32::RED)).ui(ui);
+                                }
+
+                                ui.label(positional_replace!(&self.locale.localization.modals.game_launch_out_of_date.comparison, "local", &game.version.installed, "online", &game.version.latest));
+
+                                ui.with_layout(Layout::bottom_up(egui::Align::Min), |ui| {
+                                    if ui.add_sized([ui.available_size_before_wrap().x, ui.spacing().interact_size.y], egui::Button::new(&self.locale.localization.modals.game_launch_out_of_date.launch)).clicked() {
+                                        self.playing_game = Some(game.slug.clone());
+                                        let settings = self.settings.game_settings.get(&game.slug);
+                                        let settings = if let Some(settings) = settings {
+                                            Some(settings.to_owned())
+                                        } else {
+                                            None
+                                        };
+                                        let _ = self.backend.backend_commander.send(
+                                            crate::bridge_thread::MaximaLibRequest::StartGameRequest(
+                                                game.clone(),
+                                                settings,
+                                            ),
+                                        );
+                                        clear = true
+                                    }
+                                    ui.separator();
+                                    ui.checkbox(&mut self.settings.ignore_ood_games, &self.locale.localization.modals.game_launch_out_of_date.ok_i_get_it);
+                                });
                             }
                         }
                         ui.allocate_space(ui.available_size_before_wrap());

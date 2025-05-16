@@ -29,7 +29,7 @@ pub struct OwnedOffer {
 }
 
 impl OwnedOffer {
-    pub async fn installed(&self) -> bool {
+    pub async fn is_installed(&self) -> bool {
         let path =
             parse_registry_path(&self.offer.install_check_override().as_ref().unwrap()).await;
         // If it wasn't replaced...
@@ -52,7 +52,7 @@ impl OwnedOffer {
     pub async fn execute_path(&self, trial: bool) -> Result<PathBuf> {
         let manifest = self.local_manifest().await;
         if manifest.is_none() {
-            bail!("No DiP manifest found for {}", self.slug);
+            bail!("No manifest found for {}", self.slug);
         }
 
         let path = if let Some(path) = manifest.unwrap().execute_path(trial) {
@@ -74,6 +74,23 @@ impl OwnedOffer {
         };
 
         Ok(parse_registry_path(&path).await)
+    }
+
+    pub async fn installed_version(&self) -> Result<String> {
+        if !self.is_installed().await {
+            bail!("Not installed")
+        }
+
+        let manifest = self.local_manifest().await;
+        if manifest.is_none() {
+            bail!("No manifest found for {}", self.slug);
+        }
+
+        if let Some(version) = manifest.unwrap().version() {
+            Ok(version)
+        } else {
+            bail!("No version found for {}", self.slug)
+        }
     }
 
     pub async fn local_manifest(&self) -> Option<Box<dyn GameManifest>> {

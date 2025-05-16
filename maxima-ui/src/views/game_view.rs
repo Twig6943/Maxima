@@ -86,19 +86,25 @@ fn game_view_action_buttons(app: &mut MaximaEguiApp, game: &GameInfo, ui: &mut U
                 if game.installed {
                     let play_str = format!("  {}  ", &localization.play.to_uppercase());
                     if game_view_action_button(play_str, buttons) {
-                        app.playing_game = Some(game.slug.clone());
-                        let settings = app.settings.game_settings.get(&game.slug);
-                        let settings = if let Some(settings) = settings {
-                            Some(settings.to_owned())
+                        if !app.settings.ignore_ood_games
+                            && &game.version.installed != &game.version.latest
+                        {
+                            set_app_modal!(app, Some(PopupModal::GameLaunchOOD(game.slug.clone())));
                         } else {
-                            None
-                        };
-                        let _ = app.backend.backend_commander.send(
-                            crate::bridge_thread::MaximaLibRequest::StartGameRequest(
-                                game.clone(),
-                                settings,
-                            ),
-                        );
+                            app.playing_game = Some(game.slug.clone());
+                            let settings = app.settings.game_settings.get(&game.slug);
+                            let settings = if let Some(settings) = settings {
+                                Some(settings.to_owned())
+                            } else {
+                                None
+                            };
+                            let _ = app.backend.backend_commander.send(
+                                crate::bridge_thread::MaximaLibRequest::StartGameRequest(
+                                    game.clone(),
+                                    settings,
+                                ),
+                            );
+                        }
                     }
                 } else if app.install_queue.contains_key(&game.offer)
                     || app.installing_now.as_ref().is_some_and(|q| q.offer.eq(&game.offer))
@@ -620,6 +626,13 @@ fn show_game_list_buttons(app: &mut MaximaEguiApp, ui: &mut Ui) {
                                 "{} - {}",
                                 &game.name,
                                 &app.locale.localization.games_view.toolbar.running_suffix
+                            )
+                        } else if game.installed && &game.version.installed != &game.version.latest
+                        {
+                            &format!(
+                                "{} - {}",
+                                &game.name,
+                                &app.locale.localization.games_view.toolbar.out_of_date_suffix
                             )
                         } else {
                             &game.name

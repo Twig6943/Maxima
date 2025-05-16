@@ -139,7 +139,7 @@ pub async fn start_game(
             }
 
             let offer = offer.unwrap();
-            if !offer.installed().await {
+            if !offer.is_installed().await {
                 bail!("Game is not installed");
             }
 

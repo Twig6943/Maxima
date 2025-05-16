@@ -632,6 +632,19 @@ service_layer_type!(GetLegacyCatalogDefsRequest, {
     locale: Locale,
 });
 
+service_layer_type!(LegacyDownloadMetadata, {
+    igo_api_enabled: bool,
+    download_type: String,
+    version: String,
+    execute_elevated: bool,
+    build_release_version: String,
+    build_live_date: String,
+    build_meta_data: String,
+    game_version: Option<String>,
+    treat_updates_as_mandatory: bool,
+    enable_differential_update: bool,
+});
+
 service_layer_type!(LegacyOffer, {
     offer_id: String,
     content_id: String,
@@ -648,7 +661,7 @@ service_layer_type!(LegacyOffer, {
     display_name: String,
     display_type: String,
     dip_manifest_relative_path: Option<String>,
-    //downloads: Vec<ServiceAvailableBuild>,
+    downloads: Vec<ServiceLegacyDownloadMetadata>,
     is_downloadable: bool,
     cloud_save_configuration_override: Option<String>,
 });
@@ -721,6 +734,32 @@ service_layer_type!(GameHub, {
 service_layer_type!(GameHubCollection, {
     items: Vec<ServiceGameHub>,
 });
+
+impl ServiceImage {
+    fn large_avatar() -> Self {
+        ServiceImage {
+            height: Some(416),
+            width: Some(416),
+            path: LARGE_AVATAR_PATH.to_owned(),
+        }
+    }
+
+    fn medium_avatar() -> Self {
+        ServiceImage {
+            width: Some(208),
+            height: Some(208),
+            path: MEDIUM_AVATAR_PATH.to_owned(),
+        }
+    }
+
+    fn small_avatar() -> Self {
+        ServiceImage {
+            width: Some(40),
+            height: Some(40),
+            path: SMALL_AVATAR_PATH.to_owned(),
+        }
+    }
+}
 
 // Serde treats a field being null differently from the field not being there, so we need to do custom deserialization to handle this.
 impl ServiceImage {

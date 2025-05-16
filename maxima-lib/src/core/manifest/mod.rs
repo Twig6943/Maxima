@@ -12,6 +12,7 @@ pub const MANIFEST_RELATIVE_PATH: &str = "__Installer/installerdata.xml";
 pub trait GameManifest: Send + std::fmt::Debug {
     async fn run_touchup(&self, install_path: &PathBuf) -> Result<()>;
     fn execute_path(&self, trial: bool) -> Option<String>;
+    fn version(&self) -> Option<String>;
 }
 #[async_trait::async_trait]
 impl GameManifest for DiPManifest {
@@ -21,6 +22,10 @@ impl GameManifest for DiPManifest {
 
     fn execute_path(&self, trial: bool) -> Option<String> {
         self.execute_path(trial)
+    }
+
+    fn version(&self) -> Option<String> {
+        self.version()
     }
 }
 
@@ -32,6 +37,10 @@ impl GameManifest for PreDiPManifest {
 
     fn execute_path(&self, _: bool) -> Option<String> {
         None // pre-dip games don't have an exe field, most if not all just use info in the offer
+    }
+
+    fn version(&self) -> Option<String> {
+        self.version()
     }
 }
 

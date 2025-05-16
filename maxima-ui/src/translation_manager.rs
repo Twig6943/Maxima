@@ -36,6 +36,8 @@ pub struct LocalizedModals {
     pub game_install: LocalizedGameInstallModal,
     /// The modal shown when changing settings for a game
     pub game_settings: LocalizedGameSettingsModal,
+    /// The modal shown when launching an out-of-date game (one that has an update available but is not installed, or is just an old build)
+    pub game_launch_out_of_date: LocalizedGameLaunchOODModal,
 }
 
 #[derive(Deserialize)]
@@ -72,6 +74,23 @@ pub struct LocalizedGameSettingsModal {
     pub executable_override: String,
     /// Button that initates uninstallation
     pub uninstall: String,
+    /// Version label
+    pub version: String,
+}
+
+#[derive(Deserialize)]
+pub struct LocalizedGameLaunchOODModal {
+    pub header: String,
+    /// The main warning. States that the installed build is not the latest, and the game may behave erratically.
+    pub warning: String,
+    /// A second, brigher/flashier warning stating that the game has requested to only be ran on the latest version (but we ignore that of couse)
+    pub really_warning: String,
+    /// String comparing local and online versions
+    pub comparison: String,
+    /// "Don't show again" checkbox
+    pub ok_i_get_it: String,
+    /// "Launch Anyway" button
+    pub launch: String,
 }
 
 #[derive(Deserialize)]
@@ -155,6 +174,8 @@ pub struct LocalizedGameInstallationSettings {
     pub header: String,
     /// Label for a text box for a default path to install games
     pub default_folder: String,
+    /// Checkbox for ignoring the out-of-date launch warning
+    pub ignore_ood_warning: String,
 }
 
 #[derive(Deserialize)]
@@ -178,6 +199,8 @@ pub struct LocalizedGamesViewToolbar {
     pub search_bar_hint: String,
     /// Appended after the title of a running game
     pub running_suffix: String,
+    /// aooebded after tge title of a game that needs an update
+    pub out_of_date_suffix: String,
 }
 
 #[derive(Deserialize)]

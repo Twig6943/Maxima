@@ -39,7 +39,8 @@
                 "mac" : "Mac"
             },
             "search_bar_hint" : "Search Games",
-            "running_suffix" : "Running"
+            "running_suffix" : "Running",
+            "out_of_date_suffix" : "Update Available"
         },
         "main" : {
             "play" : "▶ Play",
@@ -93,7 +94,8 @@
         },
         "game_installation" : {
             "header": "Game Installation",
-            "default_folder": "Default installation folder"
+            "default_folder": "Default installation folder",
+            "ignore_ood_warning": "Ignore out-of-date game launch warning"
         },
         "performance" : {
             "header": "Performance",
@@ -123,7 +125,16 @@
             "cloud_saves": "Cloud Saves",
             "launch_arguments": "Launch Arguments",
             "executable_override": "Executable Override",
-            "uninstall": "Uninstall"
+            "uninstall": "Uninstall",
+            "version": "Version {version}"
+        },
+        "game_launch_out_of_date" : {
+            "header" : "Launching Out-of-Date Game",
+            "warning" : "You are launching an older build of {gamename} than the current live build. Online features may not be available.",
+            "really_warning" : "{gamename} has requested that updates be mandatory. You can choose to ignore this, but proceed with caution. Launch at your own risk, and back up your save data.",
+            "comparison": "Installed: {local}, Latest: {online}",
+            "ok_i_get_it" : "Don't warn me again",
+            "launch" : "Launch Anyway"
         }
     }
 }

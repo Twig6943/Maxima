@@ -109,6 +109,10 @@ impl PreDiPManifest {
         Ok(quick_xml::de::from_str(&string.unwrap())?)
     }
 
+    pub fn version(&self) -> Option<String> {
+        Some(self.attr_gameVersion.clone())
+    }
+
     #[cfg(unix)]
     pub async fn run_touchup(&self, install_path: &PathBuf) -> Result<()> {
         use crate::{
