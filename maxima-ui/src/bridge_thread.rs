@@ -130,7 +130,7 @@ impl BridgeThread {
         let context = ctx.clone();
 
         tokio::task::spawn(async move {
-            let die_fallback_transmittter = backend_responder.clone();
+            let die_fallback_transmitter = backend_responder.clone();
             //panic::set_hook(Box::new( |_| {}));
             let result = BridgeThread::run(
                 backend_cmd_listener,
@@ -142,7 +142,7 @@ impl BridgeThread {
             )
             .await;
             if let Err(result) = result {
-                die_fallback_transmittter
+                die_fallback_transmitter
                     .send(MaximaLibResponse::InteractionThreadDiedResponse)
                     .unwrap();
                 panic!("Interact thread failed! {}", result);
@@ -268,10 +268,10 @@ impl BridgeThread {
             let user = maxima.local_user().await?;
 
             if logged_in {
-                let lmessage = MaximaLibResponse::LoginResponse(Ok(InteractThreadLoginResponse {
+                let message = MaximaLibResponse::LoginResponse(Ok(InteractThreadLoginResponse {
                     you: user.player().as_ref().unwrap().to_owned(),
                 }));
-                backend_responder.send(lmessage)?;
+                backend_responder.send(message)?;
             }
             let res = remote_provider_channel.send(UIImageCacheLoaderCommand::ProvideRemote(
                 crate::ui_image::UIImageType::Avatar(user.id().to_string()),

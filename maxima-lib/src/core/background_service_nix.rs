@@ -25,7 +25,7 @@ pub struct WineInjectArgs {
 }
 
 pub async fn wine_get_pid(launch_id: &str, name: &str) -> Result<u32> {
-    debug!("Seaching for wine PID for {}", name);
+    debug!("Searching for wine PID for {}", name);
 
     let launch_args = WineGetPidArgs {
         launch_id: launch_id.to_owned(),

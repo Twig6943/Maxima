@@ -135,11 +135,11 @@ fn game_view_system_requirements(
     ui: &mut Ui,
 ) {
     let req_width = ((ui.available_size_before_wrap().x) - 5.0) / 2.0;
-    ui.horizontal(|sysreq| {
+    ui.horizontal(|sys_req| {
         puffin::profile_scope!("system requirements");
         if let Some(details) = game_details {
             if let Some(min_requirements) = &details.system_requirements_min {
-                sysreq.vertical(|min| {
+                sys_req.vertical(|min| {
                     puffin::profile_scope!("minimum");
                     min.set_min_width(req_width);
                     min.set_max_width(req_width);
@@ -149,7 +149,7 @@ fn game_view_system_requirements(
             }
 
             if let Some(rec_requirements) = &details.system_requirements_rec {
-                sysreq.vertical(|rec| {
+                sys_req.vertical(|rec| {
                     puffin::profile_scope!("recommended");
                     rec.set_min_width(req_width);
                     rec.set_max_width(req_width);
@@ -158,7 +158,7 @@ fn game_view_system_requirements(
                 });
             }
         } else {
-            sysreq.vertical(|min| {
+            sys_req.vertical(|min| {
                 puffin::profile_scope!("minimum skeleton");
                 min.set_min_width(req_width);
                 min.set_max_width(req_width);
@@ -172,7 +172,7 @@ fn game_view_system_requirements(
                 skeleton_text_block1(min, 28.0, 188.0, 13.0);
                 skeleton_text_block1(min, 22.0, 62.0, 13.0);
             });
-            sysreq.vertical(|rec| {
+            sys_req.vertical(|rec| {
                 puffin::profile_scope!("recommended skeleton");
                 rec.set_min_width(req_width);
                 rec.set_max_width(req_width);

@@ -27,11 +27,11 @@ pub async fn login_oauth(
     }
 
     let user = maxima.local_user().await?;
-    let lmessage = MaximaLibResponse::LoginResponse(Ok(InteractThreadLoginResponse {
+    let message = MaximaLibResponse::LoginResponse(Ok(InteractThreadLoginResponse {
         you: user.player().as_ref().unwrap().to_owned(),
     }));
 
-    channel.send(lmessage)?;
+    channel.send(message)?;
 
     take_foreground_focus().unwrap();
     ctx.request_repaint();

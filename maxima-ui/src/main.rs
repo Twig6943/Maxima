@@ -21,7 +21,7 @@ use views::{
     },
     game_view::{games_view, GameViewBar, GameViewBarGenre, GameViewBarPlatform},
     settings_view::settings_view,
-    undefinied_view::{coming_soon_view, undefined_view},
+    undefined_view::{coming_soon_view, undefined_view},
 };
 
 use eframe::egui_glow;
@@ -300,7 +300,7 @@ pub struct MaximaEguiApp {
     locale: TranslationManager,
     /// If a core thread has crashed and made the UI unstable
     critical_bg_thread_crashed: bool,
-    /// pepega
+    /// Backend
     backend: BridgeThread,
     /// what the backend doin?
     backend_state: BackendStallState,

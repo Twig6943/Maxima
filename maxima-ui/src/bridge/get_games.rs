@@ -190,7 +190,7 @@ pub async fn get_games_request(
     channel1: Sender<UIImageCacheLoaderCommand>,
     ctx: &Context,
 ) -> Result<()> {
-    debug!("recieved request to load games");
+    debug!("received request to load games");
     let mut maxima = maxima_arc.lock().await;
     let service_layer = maxima.service_layer().clone();
     let locale = maxima.locale().short_str().to_owned();

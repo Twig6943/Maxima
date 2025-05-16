@@ -19,21 +19,21 @@ pub fn html_to_easymark(html: &str) -> String {
     {
         let segment = rtn[idx..].to_string();
 
-        let beglink = segment.find("<a href=\"").expect("welp") + 9;
-        let endlink = segment[beglink..].find("\"").expect("welp") + beglink;
-        let begtext = segment[endlink..].find("\">").expect("welp") + endlink + 2;
-        let endtext = segment[begtext..].find("</a>").expect("welp") + begtext;
+        let link_beg = segment.find("<a href=\"").unwrap() + 9;
+        let link_end = segment[link_beg..].find("\"").unwrap() + link_beg;
+        let text_beg = segment[link_end..].find("\">").unwrap() + link_end + 2;
+        let text_end = segment[text_beg..].find("</a>").unwrap() + text_beg;
 
-        let modlink: String = "[".to_string()
-            + &segment[begtext..endtext].to_string()
+        let link_mod: String = "[".to_string()
+            + &segment[text_beg..text_end].to_string()
             + "]("
-            + &segment[beglink..endlink].to_string()
+            + &segment[link_beg..link_end].to_string()
             + ")";
-        rtn = rtn[..idx + (beglink - 9)].to_string()
-            + &modlink
-            + &rtn[idx + endtext + 4..].to_string();
+        rtn = rtn[..idx + (link_beg - 9)].to_string()
+            + &link_mod
+            + &rtn[idx + text_end + 4..].to_string();
 
-        idx += (beglink - 9) + (modlink.len());
+        idx += (link_beg - 9) + (link_mod.len());
     }
     idx = 0;
 
@@ -41,12 +41,12 @@ pub fn html_to_easymark(html: &str) -> String {
     while rtn.len() > idx && rtn[idx..].find("<img").is_some() && rtn[idx..].find(">").is_some() {
         let segment = rtn[idx..].to_string();
 
-        let begimg = segment.find("<img").expect("welp") + 4;
-        let endimg = segment[begimg..].find(">").expect("welp") + begimg;
+        let img_beg = segment.find("<img").unwrap() + 4;
+        let img_end = segment[img_beg..].find(">").unwrap() + img_beg;
 
-        rtn = rtn[..idx + (begimg - 4)].to_string() + &rtn[idx + endimg + 1..].to_string();
+        rtn = rtn[..idx + (img_beg - 4)].to_string() + &rtn[idx + img_end + 1..].to_string();
 
-        idx += begimg - 4;
+        idx += img_beg - 4;
     }
 
     rtn.replace("/", "\\/") // links are caught in the crossfire of this, but clicking them still leads to where they should

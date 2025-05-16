@@ -18,7 +18,7 @@ pub fn case_insensitive_path(path: PathBuf) -> PathBuf {
                 break;
             }
         } else {
-            // If we run out of acnestors, return the original path
+            // If we run out of ancestors, return the original path
             return original_path;
         }
     }

@@ -47,11 +47,11 @@ impl BridgeThread {
         let (tx1, rx0) = mpsc::channel();
 
         tokio::task::spawn(async move {
-            let die_fallback_transmittter = tx1.clone();
+            let die_fallback_transmitter = tx1.clone();
             //panic::set_hook(Box::new( |_| {}));
             let result = BridgeThread::run(rx1, tx1).await;
             if result.is_err() {
-                die_fallback_transmittter
+                die_fallback_transmitter
                     .send(MaximaLibResponse::InteractionThreadDiedResponse)
                     .unwrap();
                 panic!("Interact thread failed! {}", result.err().unwrap());
@@ -86,12 +86,12 @@ impl BridgeThread {
                 drop(auth_storage);
 
                 let user = maxima.local_user().await?;
-                let lmessage = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
+                let message = MaximaLibResponse::LoginResponse(InteractThreadLoginResponse {
                     success: true,
                     name: user.player().as_ref().unwrap().display_name().to_owned(),
                 });
 
-                tx1.send(lmessage)?;
+                tx1.send(message)?;
             } else {
                 tx1.send(MaximaLibResponse::LoginCacheEmpty)?;
             }

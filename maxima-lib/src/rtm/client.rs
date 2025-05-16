@@ -234,7 +234,7 @@ impl RtmClient {
             self.session_cleanup(&ele.session_key).await?;
         }
 
-        info!("Succesfully logged into RTM");
+        info!("Successfully logged into RTM");
         Ok(())
     }
 

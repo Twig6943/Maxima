@@ -16,7 +16,7 @@ pub async fn get_friends_request(
     remote_provider_channel: Sender<UIImageCacheLoaderCommand>,
     ctx: &Context,
 ) -> Result<()> {
-    debug!("recieved request to load friends");
+    debug!("received request to load friends");
     let maxima = maxima_arc.lock().await;
     let logged_in = maxima.auth_storage().lock().await.current().is_some();
     if !logged_in {
@@ -24,16 +24,15 @@ pub async fn get_friends_request(
     }
 
     let friends = maxima.friends(0).await?;
-    for bitchass in friends {
+    for friend in friends {
         remote_provider_channel
             .send(UIImageCacheLoaderCommand::ProvideRemote(
-                crate::ui_image::UIImageType::Avatar(bitchass.id().to_string()),
-                bitchass.avatar().as_ref().unwrap().medium().path().to_string(),
-            ))
-            .unwrap();
+                crate::ui_image::UIImageType::Avatar(friend.id().to_string()),
+                friend.avatar().as_ref().unwrap().medium().path().to_string(),
+            ))?;
         let friend_info = UIFriend {
-            name: bitchass.display_name().to_string(),
-            id: bitchass.id().to_string(),
+            name: friend.display_name().to_string(),
+            id: friend.id().to_string(),
             online: BasicPresence::Offline,
             game: None,
             game_presence: None,

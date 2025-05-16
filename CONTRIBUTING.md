@@ -55,7 +55,7 @@ cargo +nightly run --bin maxima-cli
 
 ## Code Style
 
-Please keep consistent code style throughought the project, as it makes it simpler to contribute and collaborate.
+Please keep consistent code style throughout the project, as it makes it simpler to contribute and collaborate.
 
 Use `rustfmt` to automatically format the code to meet all the expectations
 ```

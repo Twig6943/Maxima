@@ -72,7 +72,7 @@ pub struct LocalizedGameSettingsModal {
     pub launch_arguments: String,
     /// Label for a text box to contain the full path to the EXE to run instead
     pub executable_override: String,
-    /// Button that initates uninstallation
+    /// Button that initiates uninstallation
     pub uninstall: String,
     /// Version label
     pub version: String,
@@ -83,7 +83,7 @@ pub struct LocalizedGameLaunchOODModal {
     pub header: String,
     /// The main warning. States that the installed build is not the latest, and the game may behave erratically.
     pub warning: String,
-    /// A second, brigher/flashier warning stating that the game has requested to only be ran on the latest version (but we ignore that of couse)
+    /// A second, brighter/flashier warning stating that the game has requested to only be ran on the latest version (but we ignore that of course)
     pub really_warning: String,
     /// String comparing local and online versions
     pub comparison: String,
@@ -199,7 +199,7 @@ pub struct LocalizedGamesViewToolbar {
     pub search_bar_hint: String,
     /// Appended after the title of a running game
     pub running_suffix: String,
-    /// aooebded after tge title of a game that needs an update
+    /// Appended after tge title of a game that needs an update
     pub out_of_date_suffix: String,
 }
 
