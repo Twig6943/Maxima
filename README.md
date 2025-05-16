@@ -58,5 +58,6 @@ It's the farthest you can get from the Origin.
 See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Maintainers:
- - [Sean Kahler](https://github.com/BattleDash) (Lib, Bootstrap, Service)
+ - [Sean Kahler](https://github.com/battledash) (Core)
  - [Nick Whelan](https://github.com/headassbtw) (UI)
+ - [Paweł Lidwin](https://github.com/imLinguin) (Core)
