@@ -16,6 +16,9 @@ pub enum BackgroundServiceControlError {
     WindowsService(#[from] windows_service::Error),
     #[error(transparent)]
     Nul(#[from] prost::alloc::ffi::NulError),
+    #[cfg(windows)]
+    #[error(transparent)]
+    WidestringContainsNul(#[from] widestring::error::ContainsNul<u16>),
 
     #[error("failed to find service when configuring security")]
     Absent,

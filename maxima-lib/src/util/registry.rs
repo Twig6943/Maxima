@@ -111,7 +111,7 @@ async fn read_reg_key(path: &str) -> Result<Option<String>, RegistryError> {
         unsafe {
             if RegOpenKeyExW(
                 hkey,
-                U16CString::from_str(sub_key).unwrap().as_ptr(),
+                U16CString::from_str(sub_key)?.as_ptr(),
                 0,
                 KEY_QUERY_VALUE,
                 &mut handle,
@@ -125,7 +125,7 @@ async fn read_reg_key(path: &str) -> Result<Option<String>, RegistryError> {
 
             if RegQueryValueExW(
                 handle,
-                U16CString::from_str(value_name).unwrap().as_ptr(),
+                U16CString::from_str(value_name)?.as_ptr(),
                 ptr::null_mut(),
                 dw_type,
                 ptr::null_mut(),
@@ -150,7 +150,7 @@ async fn read_reg_key(path: &str) -> Result<Option<String>, RegistryError> {
             let mut buf: Vec<u16> = vec![0; dw_size as usize / 2];
             if RegQueryValueExW(
                 handle,
-                U16CString::from_str(value_name).unwrap().as_ptr(),
+                U16CString::from_str(value_name)?.as_ptr(),
                 ptr::null_mut(),
                 dw_type,
                 buf.as_mut_ptr() as *mut u8,
