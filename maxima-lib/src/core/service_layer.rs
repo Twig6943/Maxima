@@ -646,7 +646,7 @@ service_layer_type!(FriendsOffsetPage, {
 service_layer_type!(BlockedPlayer, {
     pd: String,
     timestamp: String,
-    player_v2: ServicePlayer,
+    player_v2: Option<ServicePlayer>,
 });
 
 service_layer_type!(BlockedPlayerOffsetPage, {
