@@ -3,7 +3,7 @@
 ![Logo](images/1500x500.jpg)
 
 > [!WARNING]
-> Maxima is pre-pre-pre-alpha-quality software, and is being made open source **prematurely** for [KYVER](https://github.com/ArmchairDevelopers/Kyber), which depends on it. We cannot yet provide any support for attempting to use it standalone, although bug-fixes and [contributions](CONTRIBUTING.md) are welcome.
+> Maxima is pre-pre-pre-alpha-quality software, and is being made open source **prematurely** for [KYBER](https://github.com/ArmchairDevelopers/Kyber), which depends on it. We cannot yet provide any support for attempting to use it standalone, although bug-fixes and [contributions](CONTRIBUTING.md) are welcome.
 
 Maxima is an open-source replacement for the EA Desktop/Origin game launcher, running natively on Linux and Windows, with macOS support in progress.
 
