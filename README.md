@@ -57,7 +57,12 @@ It's the farthest you can get from the Origin.
 ## Contributing
 See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
+## Honorable mentions
+ - [Sean Kahler](https://github.com/battledash)
+   - Former Core maintainer
+   - Creator of Maxima
+
 ## Maintainers:
- - [Sean Kahler](https://github.com/battledash) (Core)
  - [Nick Whelan](https://github.com/headassbtw) (UI)
  - [Paweł Lidwin](https://github.com/imLinguin) (Core)
+
